@@ -15,10 +15,11 @@
     :while ($waited < $maxWait && $done = false) do={
         :local etherCount [:len [/interface ethernet find]]
 
-        :if ($etherCount >= 14) do={   # Adjust to your port count
+        :if ($etherCount >= @@ETHER_PORTS@@) do={
             :log info "Interfaces ready after $waited seconds. Renaming..."
 
             /interface ethernet
+            @@ETHER_NAMES@@
             set [ find default-name=ether1 ] disable-running-check=no name=qsfp28-1-1
             set [ find default-name=ether2 ] disable-running-check=no name=qsfp28-2-1
             set [ find default-name=ether3 ] disable-running-check=no name=sfp28-1
@@ -58,3 +59,5 @@
 
 /system scheduler add name="rename-on-boot" on-event=rename-interfaces \
     start-time=startup interval=0s policy=read,write,test
+
+/system identity set name="@@NAME@@"

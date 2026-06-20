@@ -1,0 +1,7 @@
+custom_templates:
+  - name: "mikrotik-crs309"
+    listname: "MikroTik CRS309"
+  - name: "mikrotik-crs520"
+    listname: "MikroTik CRS520"
+  - name: "mikrotik-rb5009"
+    listname: "MikroTik RB5009"

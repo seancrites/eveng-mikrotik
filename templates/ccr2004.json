@@ -1,0 +1,16 @@
+{
+   "name": "ccr2004",
+   "description": "MikroTik CCR2004",
+   "num_cpu": 4,
+   "ram": 4096,
+   "ether_ports": 12,
+   "ether_names": [
+      "ether1",
+      "ether2",
+      "ether3",
+      "ether4",
+      "sfpplus1",
+      "sfpplus2",
+      "sfpplus3"
+   ]
+}

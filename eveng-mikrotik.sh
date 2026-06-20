@@ -201,7 +201,7 @@ main() {
    TMP_MERGED="/tmp/merged_${DIR_PREFIX}.yml"
    ETH_LIST_TMP="/tmp/eth_list.txt"
 
-   jq -r '.eth_names | map("  - " + .) | join("\n")' "$JSON_FILE" > "$ETH_LIST_TMP"
+   jq -r '.ether_names | map("  - " + .) | join("\n")' "$JSON_FILE" > "$ETH_LIST_TMP"
 
    awk -v desc="$DESCRIPTION" \
        -v prefix="$DIR_PREFIX" \

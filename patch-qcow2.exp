@@ -74,51 +74,40 @@ send_user "\n=== At main prompt - applying config ===\n"
 
 # Apply RSC files in order: model default, global, model custom
 # Each file is optional except the model default
-proc apply_rsc_file {rsc_file line_offset} {
+proc apply_rsc_file {rsc_file} {
     if {![file exists $rsc_file]} {
-        return $line_offset
+        return
     }
 
     puts "\n=== Applying RSC: $rsc_file ==="
 
     set fd [open $rsc_file r]
-    set line_count 0
+    set rsc_content [read $fd]
+    close $fd
 
-    while {[gets $fd line] >= 0} {
-        incr line_count
-        incr line_offset
+    set rsc_content [string trimright $rsc_content]
 
-        # Skip empty lines and comments
-        if {[string trim $line] eq "" || [string match "#*" [string trim $line]]} {
-            continue
+    send_user "  -> Pasting entire RSC file...\n"
+
+    send "$rsc_content\r"
+
+    # Wait for prompt after paste
+    set timeout 15
+    expect {
+        -re {\[admin@} {
+            # prompt ready
         }
-
-        send_user "  -> Sending line $line_offset: [string range $line 0 80]...\n"
-
-        send "$line\r"
-
-        # Wait for prompt after each command (non-fatal timeout)
-        expect {
-            -re {\[admin@} {
-                # prompt ready
-            }
-            timeout {
-                send_user "  -> Timeout after command line $line_offset, continuing\n"
-            }
+        timeout {
+            send_user "  -> Timeout after RSC paste, continuing\n"
         }
     }
 
-    close $fd
-    puts "  -> Finished $line_count commands from $rsc_file"
-    return $line_offset
+    puts "  -> Finished $rsc_file"
 }
 
-set total_lines 0
-set total_lines [apply_rsc_file $rsc_model_file $total_lines]
-set total_lines [apply_rsc_file $rsc_global_file $total_lines]
-set total_lines [apply_rsc_file $rsc_custom_file $total_lines]
-
-puts "\n=== Total commands sent: $total_lines ==="
+apply_rsc_file $rsc_model_file
+apply_rsc_file $rsc_global_file
+apply_rsc_file $rsc_custom_file
 
 # Shutdown guest
 set timeout 15

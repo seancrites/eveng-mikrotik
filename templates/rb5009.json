@@ -1,0 +1,18 @@
+{
+   "name": "rb5009",
+   "description": "MikroTik RB5009",
+   "num_cpu": 1,
+   "ram": 4096,
+   "ether_ports": 9,
+   "ether_names": [
+      "ether1",
+      "ether2",
+      "ether3",
+      "ether4",
+      "ether5",
+      "ether6",
+      "ether7",
+      "ether8",
+      "sfp-sfpplus1"
+   ]
+}
