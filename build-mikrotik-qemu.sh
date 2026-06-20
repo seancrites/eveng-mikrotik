@@ -350,6 +350,7 @@ run_patch() {
 
    echo ""
    echo "=== Starting QEMU image patching ($MODEL) ==="
+   [ "$VERBOSE" = true ] && echo "Running: $PATCH_SCRIPT ${QEMU_DIR}/hda.qcow2 $PATCH_ARGS"
 
    "$PATCH_SCRIPT" "${QEMU_DIR}/hda.qcow2" $PATCH_ARGS
    local PATCH_EXIT=$?
