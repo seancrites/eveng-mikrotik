@@ -1,0 +1,148 @@
+#!/usr/bin/expect -f
+# patch-qcow2.exp
+# Copyright (C) 2026 Sean Crites
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Purpose: Connect to QEMU serial console, apply per-model RouterOS config, shutdown.
+
+set timeout 60
+set model        [lindex $argv 0]
+set serial_port  [lindex $argv 1]
+set monitor_port [lindex $argv 2]
+
+set rsc_model_file "templates/${model}.rsc"
+set rsc_global_file "templates/global-custom.rsc"
+set rsc_custom_file "templates/${model}-custom.rsc"
+
+exp_internal 1
+log_file /tmp/chr-debug.log
+log_user 1
+
+spawn telnet 127.0.0.1 6001
+
+send_user "\n=== Connected ===\n"
+send "\r"
+
+expect {
+   "MikroTik" { send_user "\n=== Banner detected ===\n" }
+   timeout { send_user "\n=== No banner yet ===\n" }
+}
+
+expect {
+   "Login:" {
+      send_user "\n=== Login prompt ===\n"
+      send "admin+tce\r"
+   }
+   timeout { send_user "\n=== Timeout at login ===\n"; exit 1 }
+}
+
+expect {
+   "Password:" {
+      send_user "\n=== Password prompt ===\n"
+      send "\r"
+   }
+}
+
+# License prompt (use -re to treat [Y/n] literally)
+expect {
+   -exact {Do you want to see the software license? [Y/n]: } {
+      send_user "\n=== License prompt - answering n ===\n"
+      send "n\r"
+   }
+   ">" {
+      send_user "\n=== Already at prompt (no license) ===\n"
+   }
+}
+
+# Password change prompt
+expect {
+   "new password>" {
+      send_user "\n=== Password change prompt - skipping with Ctrl-C ===\n"
+      send "\003"
+   }
+   ">" {
+      send_user "\n=== At main prompt ===\n"
+   }
+}
+
+expect ">"
+send_user "\n=== At main prompt - applying config ===\n"
+
+# Apply RSC files in order: model default, global, model custom
+# Each file is optional except the model default
+proc apply_rsc_file {rsc_file line_offset} {
+    if {![file exists $rsc_file]} {
+        return $line_offset
+    }
+
+    puts "\n=== Applying RSC: $rsc_file ==="
+
+    set fd [open $rsc_file r]
+    set line_count 0
+
+    while {[gets $fd line] >= 0} {
+        incr line_count
+        incr line_offset
+
+        # Skip empty lines and comments
+        if {[string trim $line] eq "" || [string match "#*" [string trim $line]]} {
+            continue
+        }
+
+        send_user "  -> Sending line $line_offset: [string range $line 0 80]...\n"
+
+        send "$line\r"
+
+        # Wait for prompt after each command (non-fatal timeout)
+        expect {
+            -re {\[admin@} {
+                # prompt ready
+            }
+            timeout {
+                send_user "  -> Timeout after command line $line_offset, continuing\n"
+            }
+        }
+    }
+
+    close $fd
+    puts "  -> Finished $line_count commands from $rsc_file"
+    return $line_offset
+}
+
+set total_lines 0
+set total_lines [apply_rsc_file $rsc_model_file $total_lines]
+set total_lines [apply_rsc_file $rsc_global_file $total_lines]
+set total_lines [apply_rsc_file $rsc_custom_file $total_lines]
+
+puts "\n=== Total commands sent: $total_lines ==="
+
+# Shutdown guest
+set timeout 15
+send "/system shutdown\r"
+
+# expect {
+#     -re {(?i).*login:|username:.*} {
+#         puts "SUCCESS: shutdown confirmed"
+#         exit 0
+#     }
+#     timeout {
+#         # shutdown initiated, exit cleanly
+#         exit 0
+#     }
+#     eof {
+#         exit 0
+#     }
+# }
+
+expect ">"
+send "system shutdown\r"
+expect {
+    -exact {Shutdown, yes? [y/N]: } {
+        send "y\r"
+    }
+}
+send_user "\n=== Script finished ===\n"
