@@ -1,0 +1,14 @@
+# Custom user RSC overrides (not tracked by default)
+templates/global-custom.rsc
+templates/*-custom.rsc
+
+# Build artifacts
+/tmp/chr-*.img.zip
+/tmp/merged_*
+/tmp/eth_list.txt
+/tmp/chr-patch-rsc.*
+dev*
+.waylog/
+
+# Expect debug logs
+/tmp/chr-debug.log
