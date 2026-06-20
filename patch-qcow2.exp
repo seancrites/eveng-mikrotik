@@ -13,8 +13,8 @@ set timeout 60
 set model        [lindex $argv 0]
 set serial_port  [lindex $argv 1]
 set monitor_port [lindex $argv 2]
+set rsc_model_file [lindex $argv 3]
 
-set rsc_model_file "templates/${model}.rsc"
 set rsc_global_file "templates/global-custom.rsc"
 set rsc_custom_file "templates/${model}-custom.rsc"
 

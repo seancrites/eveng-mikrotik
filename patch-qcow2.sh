@@ -12,7 +12,7 @@
 set -euo pipefail
 
 check_dependencies() {
-   local deps="qemu-system-x86_64 expect nc"
+   local deps="qemu-system-x86_64 expect nc jq"
    for dep in $deps; do
       if ! command -v "$dep" >/dev/null 2>&1; then
          echo "Error: Required dependency '$dep' is not available. Please install it."
@@ -23,6 +23,56 @@ check_dependencies() {
 
 log() {
    echo "[$(date '+%H:%M:%S')] $1" >&2
+}
+
+# Generate a per-model RSC file on the fly from the JSON definition and template.
+# Returns the path to the generated RSC file.
+generate_rsc() {
+   local model="$1"
+   local json_file="templates/${model}.json"
+   local template_file="templates/mikrotik-template.rsc"
+   local output_file="/tmp/${model}.rsc"
+
+   if [ ! -f "$json_file" ]; then
+      echo "Error: Model JSON file not found: $json_file"
+      exit 1
+   fi
+
+   if [ ! -f "$template_file" ]; then
+      echo "Error: RSC template file not found: $template_file"
+      exit 1
+   fi
+
+   local name
+   name="$(jq -r '.name' "$json_file")"
+   local name_upper
+   name_upper="$(echo "$name" | tr '[:lower:]' '[:upper:]')"
+
+   local ether_ports
+   ether_ports="$(jq -r '.ether_names | length' "$json_file")"
+
+   # Copy template and do simple placeholder replacements
+   cp "$template_file" "$output_file"
+   sed -i "s/@@ETHER_PORTS@@/${ether_ports}/g" "$output_file"
+   sed -i "s/@@NAME@@/${name_upper}/g" "$output_file"
+
+   # Generate interface rename lines into a temp file
+   local rename_tmp
+   rename_tmp="$(mktemp /tmp/${model}_rename_XXXXXXXX.tmp)"
+   jq -r '.ether_names[]' "$json_file" | awk '{
+       printf "            set [find default-name=ether%d] disable-running-check=no name=%s\n", NR, $0
+   }' > "$rename_tmp"
+
+   # Replace @@ETHER_NAMES_RENAME@@ placeholder line with generated content
+   sed -i "/@@ETHER_NAMES_RENAME@@/{
+       r ${rename_tmp}
+       d
+   }" "$output_file"
+
+   rm -f "$rename_tmp"
+
+   log "Generated RSC: $output_file (${ether_ports} ports)"
+   echo "$output_file"
 }
 
 MAIN() {
@@ -70,12 +120,15 @@ MAIN() {
       esac
    done
 
+   # Generate the per-model RSC from JSON + template
+   RSC_GENERATED="$(generate_rsc "$MODEL")"
+
    if [ "$VERBOSE" = true ]; then
       log "Starting QEMU for $MODEL patching..."
       log "  QCOW2:    $QCOW2"
       log "  Monitor:  telnet 127.0.0.1:$MONITOR_PORT"
       log "  Serial:   telnet 127.0.0.1:$SERIAL_PORT"
-      log "  RSC:      templates/${MODEL}.rsc"
+      log "  RSC:      $RSC_GENERATED"
    fi
 
    nohup qemu-system-x86_64 \
@@ -107,7 +160,7 @@ MAIN() {
 
    log "Serial port ready. Running expect script..."
 
-   expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT"
+   expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED"
    EXPECT_EXIT=$?
 
    # Poll for QEMU process to exit (every 2s up to ~60s)
