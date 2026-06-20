@@ -1,9 +1,8 @@
 {
    "name": "crs309",
    "description": "MikroTik CRS309",
-   "num_cpu": 4,
-   "ram": 4096,
-   "ether_ports": 8,
+   "num_cpu": 1,
+   "ram": 256,
    "ether_names": [
       "sfp-sfpplus1",
       "sfp-sfpplus2",

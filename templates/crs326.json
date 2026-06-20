@@ -1,9 +1,8 @@
 {
    "name": "crs326",
    "description": "MikroTik CRS326",
-   "num_cpu": 2,
-   "ram": 1024,
-   "ether_ports": 24,
+   "num_cpu": 1,
+   "ram": 256,
    "ether_names": [
       "ether1",
       "ether2",

@@ -2,8 +2,7 @@
    "name": "crs520",
    "description": "MikroTik CRS520",
    "num_cpu": 1,
-   "ram": 4096,
-   "ether_ports": 20,
+   "ram": 256,
    "ether_names": [
       "qsfp28-1-1",
       "qsfp28-2-1",

@@ -19,21 +19,7 @@
             :log info "Interfaces ready after $waited seconds. Renaming..."
 
             /interface ethernet
-            @@ETHER_NAMES@@
-            set [ find default-name=ether1 ] disable-running-check=no name=qsfp28-1-1
-            set [ find default-name=ether2 ] disable-running-check=no name=qsfp28-2-1
-            set [ find default-name=ether3 ] disable-running-check=no name=sfp28-1
-            set [ find default-name=ether4 ] disable-running-check=no name=sfp28-2
-            set [ find default-name=ether5 ] disable-running-check=no name=sfp28-3
-            set [ find default-name=ether6 ] disable-running-check=no name=sfp28-4
-            set [ find default-name=ether7 ] disable-running-check=no name=sfp28-5
-            set [ find default-name=ether8 ] disable-running-check=no name=sfp28-6
-            set [ find default-name=ether9 ] disable-running-check=no name=sfp28-7
-            set [ find default-name=ether10 ] disable-running-check=no name=sfp28-8
-            set [ find default-name=ether11 ] disable-running-check=no name=sfp28-9
-            set [ find default-name=ether12 ] disable-running-check=no name=sfp28-10
-            set [ find default-name=ether13 ] disable-running-check=no name=sfp28-11
-            set [ find default-name=ether14 ] disable-running-check=no name=sfp28-12
+            @@ETHER_NAMES_RENAME@@
 
             :set done true
             :set RenameDone true

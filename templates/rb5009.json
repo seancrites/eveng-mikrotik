@@ -2,8 +2,7 @@
    "name": "rb5009",
    "description": "MikroTik RB5009",
    "num_cpu": 1,
-   "ram": 4096,
-   "ether_ports": 9,
+   "ram": 256,
    "ether_names": [
       "ether1",
       "ether2",

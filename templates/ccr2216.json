@@ -3,7 +3,6 @@
    "description": "MikroTik CCR2216",
    "num_cpu": 1,
    "ram": 256,
-   "ether_ports": 14,
    "ether_names": [
       "qsfpplus1-1",
       "qsfpplus2-1",
