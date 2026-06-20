@@ -1,0 +1,33 @@
+# Copyright (C) 2026 Sean Crites
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+---
+type: qemu
+config_script: config_mikrotik.py
+description: @@DESCRIPTION@@
+name: @@DIR-PREFIX@@
+cpulimit: 1
+icon: Switch-2D-HUB-White-S.svg
+cpu: @@NUM_CPU@@
+ram: @@RAM@@
+qemu_nic: e1000-82545em
+ethernet: @@ETHER_PORTS@@
+eth_name:
+@@INTERFACE_LIST@@
+console: telnet
+qemu_arch: x86_64
+qemu_version: 2.12.0
+qemu_options: -machine type=pc,accel=kvm -serial mon:stdio -nographic -no-user-config
+  -nodefaults -display none -vga std -rtc base=utc
+...

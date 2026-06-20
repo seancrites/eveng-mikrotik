@@ -196,7 +196,7 @@ main() {
    fi
 
    # Generate template candidate
-   TEMPLATE_SRC="templates/mikrotik-template.yml"
+   TEMPLATE_SRC="templates/mikrotik-template-${TPL_SUBDIR}.yml"
    TPL_OUT="${TEMPLATES_BASE}/${DIR_PREFIX}.yml"
    TMP_MERGED="/tmp/merged_${DIR_PREFIX}.yml"
    ETH_LIST_TMP="/tmp/eth_list.txt"
