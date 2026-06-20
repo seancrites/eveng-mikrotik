@@ -65,7 +65,7 @@ expect {
    }
 }
 
-# License prompt (use -re to treat [Y/n] literally)
+# License prompt
 expect {
    -exact {Do you want to see the software license? [Y/n]: } {
       send_user "\n=== License prompt - answering n ===\n"
