@@ -1,13 +1,31 @@
 #!/usr/bin/expect -f
-# patch-qcow2.exp
-# Copyright (C) 2026 Sean Crites
+# =============================================================================
+# patch-qcow2.exp - Expect script for serial config of a CHR guest
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# PURPOSE:   Connect to a QEMU serial console, authenticate with admin+tce,
+#            apply per-model RouterOS .rsc config files (model default,
+#            global-custom, model-custom), then issue a clean shutdown.
+# AUTHOR:    Sean Crites
+# VERSION:   1.0.0
+# DATE:      2026-06-20
+# LICENSE:   GNU General Public License v3.0 (GPL-3.0)
 #
-# Purpose: Connect to QEMU serial console, apply per-model RouterOS config, shutdown.
+# DEPENDENCIES:
+#   - expect, telnet
+#   - Source .rsc templates from the templates/ directory
+#
+# USAGE:
+#   ./patch-qcow2.exp MODEL SERIAL_PORT MONITOR_PORT RSC_FILE
+#
+# Arguments:
+#   MODEL        Model name (e.g. crs309)
+#   SERIAL_PORT  Telnet serial port number
+#   MONITOR_PORT Telnet monitor port number
+#   RSC_FILE     Path to generated per-model .rsc file
+#
+# EXAMPLE:
+#   ./patch-qcow2.exp crs309 6001 6000 /tmp/crs309.rsc
+#
 
 set timeout 60
 set model        [lindex $argv 0]
@@ -111,22 +129,6 @@ apply_rsc_file $rsc_custom_file
 
 # Shutdown guest
 set timeout 15
-send "/system shutdown\r"
-
-# expect {
-#     -re {(?i).*login:|username:.*} {
-#         puts "SUCCESS: shutdown confirmed"
-#         exit 0
-#     }
-#     timeout {
-#         # shutdown initiated, exit cleanly
-#         exit 0
-#     }
-#     eof {
-#         exit 0
-#     }
-# }
-
 expect ">"
 send "system shutdown\r"
 expect {

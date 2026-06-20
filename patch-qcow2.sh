@@ -1,13 +1,31 @@
 #!/usr/bin/env bash
-# patch-qcow2.sh
-# Copyright (C) 2026 Sean Crites
+# =============================================================================
+# patch-qcow2.sh - Boot CHR image, apply RouterOS config, then shutdown
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# PURPOSE:   Boot a MikroTik CHR qcow2 image with QEMU, connect via serial
+#            console, apply per-model RouterOS configuration (interface
+#            renaming, identity, etc.), then cleanly shut down the guest.
+# AUTHOR:    Sean Crites
+# VERSION:   1.0.0
+# DATE:      2026-06-20
+# LICENSE:   GNU General Public License v3.0 (GPL-3.0)
 #
-# Purpose: Boot CHR image, run initial config via serial console, then shutdown.
+# DEPENDENCIES:
+#   - qemu-system-x86_64, expect, nc, jq
+#
+# USAGE:
+#   ./patch-qcow2.sh <hda.qcow2 path> [OPTIONS]
+#
+# Options:
+#   -h, --help          Show this help message and exit
+#   --monitor-port N    QEMU monitor port (default: 6000)
+#   --serial-port  N    Serial console port (default: 6001)
+#   --verbose           Show detailed progress
+#
+# EXAMPLE:
+#   ./patch-qcow2.sh /opt/unetlab/addons/qemu/mikrotik-crs309-7.22.1/hda.qcow2 --verbose
+#
+
 
 set -euo pipefail
 

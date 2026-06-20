@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
-# eveng-mikrotik.sh
-# Copyright (C) 2026 Sean Crites
+# =============================================================================
+# build-mikrotik-qemu.sh - Download MikroTik CHR and create Eve-NG templates
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# PURPOSE:   Download a MikroTik CHR image, create a QEMU directory, and
+#            generate an architecture-specific Eve-NG template for the
+#            specified model and version.
+# AUTHOR:    Sean Crites
+# VERSION:   1.0.0
+# DATE:      2026-06-20
+# LICENSE:   GNU General Public License v3.0 (GPL-3.0)
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# DEPENDENCIES:
+#   - curl, jq, unzip, grep, awk, sed, mkdir, mv, diff
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# USAGE:
+#   ./build-mikrotik-qemu.sh MODEL VERSION [OPTIONS]
 #
-# Purpose: Download MikroTik CHR and create Eve-NG templates for specific models.
-# Dependencies: curl, jq, unzip, grep, awk, sed, mkdir, mv, diff
-# Usage: ./eveng-mikrotik.sh MODEL VERSION [--verbose] [--force] [--dev]
-# Example: ./eveng-mikrotik.sh crs309 7.22.1 --dev --verbose
+# Options:
+#   -h, --help          Show this help message and exit
+#   --verbose           Show detailed step-by-step progress
+#   --force             Overwrite existing files/directories without prompting
+#   --dev               Use abbreviated dev directory structure for local testing
+#
+# EXAMPLE:
+#   ./build-mikrotik-qemu.sh crs309 7.22.1 --dev --verbose
+#
 
 # Proxy configuration (edit if needed; leave empty to disable)
 # PROXY="http://your-proxy:port"
