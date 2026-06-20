@@ -19,10 +19,14 @@
 #   ./build-mikrotik-qemu.sh MODEL VERSION [OPTIONS]
 #
 # Options:
-#   -h, --help          Show this help message and exit
-#   --verbose           Show detailed step-by-step progress
-#   --force             Overwrite existing files/directories without prompting
-#   --dev               Use abbreviated dev directory structure for local testing
+#   -h, --help             Show this help message and exit
+#   --verbose              Show detailed step-by-step progress
+#   --force                Overwrite existing files/directories without prompting
+#   --dev                  Use abbreviated dev directory structure for local testing
+#   --no-patch, -n         Skip the QEMU patching step (build only)
+#   --monitor-port N       Use explicit monitor port (serial = N+1)
+#   --serial-port N        Use explicit serial port (monitor = N-1)
+#   --log                 Write output to /tmp/build-mikrotik-qemu-YYYYMMSS-HHMMSS.log
 #
 # EXAMPLE:
 #   ./build-mikrotik-qemu.sh crs309 7.22.1 --dev --verbose
@@ -32,10 +36,16 @@
 # Proxy configuration (edit if needed; leave empty to disable)
 PROXY=""
 
+# Port range for random selection (edit if needed)
+PORT_RANGE_MIN=5000
+PORT_RANGE_MAX=9999
+
 VERBOSE=false
 FORCE=false
 DEV_MODE=false
 NO_PATCH=false
+LOG=false
+LOG_FILE=""
 MODEL=""
 VERSION=""
 TPL_SUBDIR=""
@@ -50,6 +60,11 @@ RAM=""
 ETHER_PORTS=""
 DIR_PREFIX=""
 QEMU_DIR=""
+MONITOR_PORT=""
+SERIAL_PORT=""
+RND_PREFIX=""
+INFO_DEBUG_FILE=""
+DEBUG_FILES=()
 
 # ---------------------------------------------------------------------------
 # check_dependencies - Verify all required CLI tools are available
@@ -73,11 +88,14 @@ show_help() {
    echo "Creates MikroTik CHR model template for Eve-NG."
    echo ""
    echo "Options:"
-   echo "  --help         Show this help"
-   echo "  --verbose      Show detailed step-by-step progress"
-   echo "  --force        Overwrite existing files/directories without prompting"
-   echo "  --dev          Use abbreviated dev directory structure for local testing"
-   echo "  --no-patch, -n Skip the QEMU patching step (build only)"
+   echo "  --help             Show this help"
+   echo "  --verbose          Show detailed step-by-step progress"
+   echo "  --force            Overwrite existing files/directories without prompting"
+   echo "  --dev              Use abbreviated dev directory structure for local testing"
+   echo "  --no-patch, -n     Skip the QEMU patching step (build only)"
+   echo "  --monitor-port N   Use explicit monitor port (serial = N+1)"
+   echo "  --serial-port N    Use explicit serial port (monitor = N-1)"
+   echo "  --log              Write output to /tmp/build-mikrotik-qemu-YYYYMMSS-HHMMSS.log"
    exit 0
 }
 
@@ -102,6 +120,17 @@ parse_args() {
          --no-patch|-n)
             NO_PATCH=true
             ;;
+         --log|-l)
+            LOG=true
+            ;;
+         --monitor-port)
+            MONITOR_PORT="${2:?--monitor-port requires a value}"
+            shift
+            ;;
+         --serial-port)
+            SERIAL_PORT="${2:?--serial-port requires a value}"
+            shift
+            ;;
          *)
             if [ -z "$MODEL" ]; then
                MODEL="$1"
@@ -120,6 +149,132 @@ parse_args() {
       echo "Error: MODEL and VERSION are required."
       show_help
    fi
+}
+
+# ---------------------------------------------------------------------------
+# setup_log_file - Create log file path and redirect shell output if requested
+# ---------------------------------------------------------------------------
+setup_log_file() {
+   if [ "$LOG" = true ]; then
+      local timestamp
+      timestamp="$(date '+%Y%m%d-%H%M%S')"
+      local prefix="build-mikrotik-qemu-${timestamp}"
+      if [ "$DEV_MODE" = true ]; then
+         prefix="${RND_PREFIX}-${prefix}"
+      fi
+      LOG_FILE="/tmp/${prefix}.log"
+      exec > >(tee -a "$LOG_FILE") 2>&1
+      if [ "$VERBOSE" = true ]; then
+         echo "Logging output to $LOG_FILE"
+      else
+         echo "Logging output to $LOG_FILE"
+      fi
+   fi
+}
+
+# ---------------------------------------------------------------------------
+# resolve_ports - Pick random ports or use explicit ones
+# ---------------------------------------------------------------------------
+resolve_ports() {
+   # If both monitor-port and serial-port are given, use as-is
+   if [ -n "$MONITOR_PORT" ] && [ -n "$SERIAL_PORT" ]; then
+      # Both specified - use them directly
+      :
+   elif [ -n "$MONITOR_PORT" ]; then
+      # Only monitor specified - derive serial
+      SERIAL_PORT=$((MONITOR_PORT + 1))
+   elif [ -n "$SERIAL_PORT" ]; then
+      # Only serial specified - derive monitor
+      MONITOR_PORT=$((SERIAL_PORT - 1))
+   else
+      # Pick random sequential ports in range
+      local max_start=$((PORT_RANGE_MAX - 1))
+      MONITOR_PORT=$((RANDOM % (max_start - PORT_RANGE_MIN + 1) + PORT_RANGE_MIN))
+      SERIAL_PORT=$((MONITOR_PORT + 1))
+   fi
+
+   if [ "$VERBOSE" = true ]; then
+      echo "Ports: monitor=$MONITOR_PORT  serial=$SERIAL_PORT"
+   fi
+}
+
+# ---------------------------------------------------------------------------
+# generate_rnd_prefix - Create random 4-char alphanumeric prefix
+# ---------------------------------------------------------------------------
+generate_rnd_prefix() {
+   if [ "$DEV_MODE" = true ]; then
+      RND_PREFIX="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 4)"
+      if [ "$VERBOSE" = true ]; then
+         echo "Random prefix: $RND_PREFIX"
+      fi
+   fi
+}
+
+# ---------------------------------------------------------------------------
+# expand_debug_info - Read info.debug, expand placeholders, write to /tmp
+# ---------------------------------------------------------------------------
+expand_debug_info() {
+   local info_src="templates/info.debug"
+   local build_cmd="$0 ${MODEL} ${VERSION}"
+   [ "$VERBOSE" = true ] && build_cmd="$build_cmd --verbose"
+   [ "$FORCE" = true ] && build_cmd="$build_cmd --force"
+   [ "$DEV_MODE" = true ] && build_cmd="$build_cmd --dev"
+   [ "$NO_PATCH" = true ] && build_cmd="$build_cmd --no-patch"
+   [ -n "$MONITOR_PORT" ] && build_cmd="$build_cmd --monitor-port $MONITOR_PORT"
+   [ -n "$SERIAL_PORT" ] && build_cmd="$build_cmd --serial-port $SERIAL_PORT"
+   [ "$LOG" = true ] && build_cmd="$build_cmd --log"
+
+   local date_time
+   date_time="$(date '+%Y-%m-%d %H:%M:%S')"
+   local user="${USER:-unknown}"
+   local git_tag
+   git_tag="$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")"
+
+   local eve_ng_version
+   if command -v apt >/dev/null 2>&1; then
+      eve_ng_version="$(apt list --installed 2>/dev/null | grep 'eve-ng' | head -1 | awk '{print $2}')"
+   fi
+   if [ -z "$eve_ng_version" ]; then
+      eve_ng_version="Not Installed"
+   fi
+
+   INFO_DEBUG_FILE="/tmp/${RND_PREFIX}-info.debug"
+
+   sed -e "s/@@DATE_TIME@@/${date_time}/g" \
+       -e "s/@@USER@@/${user}/g" \
+       -e "s/@@GIT_TAG@@/${git_tag}/g" \
+       -e "s|@@EVE-NG_VERSION@@|${eve_ng_version}|g" \
+       -e "s|@@BUILD_MIKROTIK_QEMU_CMD@@|${build_cmd}|g" \
+       -e "s|@@PATCH_QCOW2_SH_CMD@@|@@PATCH_QCOW2_SH_CMD@@|g" \
+       -e "s|@@PATCH_QCOW2_EXP_CMD@@|@@PATCH_QCOW2_EXP_CMD@@|g" \
+       "$info_src" > "$INFO_DEBUG_FILE"
+
+   DEBUG_FILES+=("$INFO_DEBUG_FILE")
+
+   if [ "$VERBOSE" = true ]; then
+      echo "Expanded debug info: $INFO_DEBUG_FILE"
+   fi
+}
+
+# ---------------------------------------------------------------------------
+# update_patch_cmds_in_info - Fill in the patch command placeholders
+#                             (called after ports are resolved)
+# ---------------------------------------------------------------------------
+update_patch_cmds_in_info() {
+   if [ -z "$INFO_DEBUG_FILE" ] || [ ! -f "$INFO_DEBUG_FILE" ]; then
+      return
+   fi
+
+   local patch_sh_cmd
+   patch_sh_cmd="$(dirname "$0")/patch-qcow2.sh ${QEMU_DIR}/hda.qcow2 --monitor-port ${MONITOR_PORT} --serial-port ${SERIAL_PORT} --rnd-prefix ${RND_PREFIX}"
+   [ "$VERBOSE" = true ] && patch_sh_cmd="$patch_sh_cmd --verbose"
+   [ "$DEV_MODE" = true ] && patch_sh_cmd="$patch_sh_cmd --dev"
+
+   local patch_exp_cmd
+   patch_exp_cmd="$(dirname "$0")/patch-qcow2.exp ${MODEL} ${SERIAL_PORT} ${MONITOR_PORT} /tmp/${RND_PREFIX}-${MODEL}.rsc"
+
+   sed -i "s|@@PATCH_QCOW2_SH_CMD@@|${patch_sh_cmd}|g" "$INFO_DEBUG_FILE"
+   sed -i "s|@@PATCH_QCOW2_EXP_CMD@@|${patch_exp_cmd}|g" "$INFO_DEBUG_FILE"
 }
 
 # ---------------------------------------------------------------------------
@@ -254,6 +409,10 @@ generate_template() {
    local TMP_MERGED="/tmp/merged_${DIR_PREFIX}.yml"
    local ETH_LIST_TMP="/tmp/eth_list.txt"
 
+   if [ -n "$RND_PREFIX" ]; then
+      TMP_MERGED="/tmp/${RND_PREFIX}-merged-${DIR_PREFIX}.yml"
+   fi
+
    jq -r '.ether_names | map("  - " + .) | join("\n")' "templates/${MODEL}.json" > "$ETH_LIST_TMP"
 
    awk -v desc="$DESCRIPTION" \
@@ -305,8 +464,13 @@ generate_template() {
       fi
    fi
 
-   # Clean up template-specific temp files
-   rm -f "$ETH_LIST_TMP" "$TMP_MERGED" 2>/dev/null || true
+   # In dev mode, keep the merged file for debug
+   if [ "$DEV_MODE" = true ]; then
+      DEBUG_FILES+=("$TMP_MERGED")
+   fi
+
+   # Clean up template-specific temp files (unless dev mode keeps them)
+   rm -f "$ETH_LIST_TMP" 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------
@@ -346,7 +510,10 @@ run_patch() {
    fi
 
    local PATCH_ARGS=""
-   [ "$VERBOSE" = true ] && PATCH_ARGS="--verbose"
+   PATCH_ARGS="--monitor-port ${MONITOR_PORT} --serial-port ${SERIAL_PORT}"
+   [ "$VERBOSE" = true ] && PATCH_ARGS="$PATCH_ARGS --verbose"
+   [ "$DEV_MODE" = true ] && PATCH_ARGS="$PATCH_ARGS --dev"
+   [ -n "$RND_PREFIX" ] && PATCH_ARGS="$PATCH_ARGS --rnd-prefix ${RND_PREFIX}"
 
    echo ""
    echo "=== Starting QEMU image patching ($MODEL) ==="
@@ -377,7 +544,47 @@ print_summary() {
    else
       echo "NOTE: Patching was skipped (--no-patch). Image has NOT been configured."
    fi
+
+   if [ "$DEV_MODE" = true ] && [ ${#DEBUG_FILES[@]} -gt 0 ]; then
+      echo ""
+      echo "Debug files created:"
+      for f in "${DEBUG_FILES[@]}"; do
+         if [ -f "$f" ]; then
+            echo "  - $f"
+         fi
+      done
+      echo ""
+      echo "Use these files for troubleshooting."
+   fi
+
    echo "You can now add the node in Eve-NG using the template name '$DIR_PREFIX'."
+   if [ "$LOG" = true ] && [ -n "$LOG_FILE" ]; then
+      echo "Log file: $LOG_FILE"
+   fi
+}
+
+# ---------------------------------------------------------------------------
+# cleanup_temp_files - Remove temporary files in non-dev mode
+# ---------------------------------------------------------------------------
+cleanup_temp_files() {
+   if [ "$DEV_MODE" = true ]; then
+      return
+   fi
+
+   # Clean up generated RSC files in /tmp
+   if [ -n "$RND_PREFIX" ]; then
+      rm -f "/tmp/${RND_PREFIX}-${MODEL}.rsc" 2>/dev/null || true
+   fi
+
+   # Clean up info debug file
+   if [ -n "$INFO_DEBUG_FILE" ] && [ -f "$INFO_DEBUG_FILE" ]; then
+      rm -f "$INFO_DEBUG_FILE" 2>/dev/null || true
+   fi
+
+   # Clean up merged template if not in dev mode
+   if [ -n "$RND_PREFIX" ]; then
+      rm -f "/tmp/${RND_PREFIX}-merged-${DIR_PREFIX}.yml" 2>/dev/null || true
+   fi
 }
 
 # ---------------------------------------------------------------------------
@@ -386,17 +593,25 @@ print_summary() {
 main() {
    check_dependencies
    parse_args "$@"
+   generate_rnd_prefix
+   setup_log_file
    detect_architecture
    setup_paths
    load_model_config
    create_qemu_directory
    download_image
+   resolve_ports
+   if [ "$DEV_MODE" = true ]; then
+      expand_debug_info
+      update_patch_cmds_in_info
+   fi
    generate_template
    register_custom_template
    if [ "$NO_PATCH" = false ]; then
       run_patch
    fi
    print_summary
+   cleanup_temp_files
 }
 
 main "$@"

@@ -1,4 +1,4 @@
-# eveng-mikrotik
+# build-mikrotik-qemu
 
 Drop a vanilla CHR into Eve-NG and you get four `ether` interfaces — fine for a quick test drive, but useless for building a real network. To lab a proof of concept, mimic a production topology, or validate a config before touching hardware, you need interfaces that match the real thing. Manually adding ports in Eve-NG and renaming them inside the CHR is tedious, fragile, and often doesn't survive a reboot.
 
@@ -47,7 +47,7 @@ MikroTik product codes encode the interface types and counts in their model name
 
 ```
 eveng-mikrotik/
-├── eveng-mikrotik.sh           # Main download + template-generation script
+├── build-mikrotik-qemu.sh      # Main download + template-generation script
 ├── patch-qcow2.sh              # QEMU boot + RSC generation + apply config + shutdown
 ├── patch-qcow2.exp             # Expect script for serial console automation
 ├── templates/                  # Per-model definitions and RSC template
@@ -72,7 +72,7 @@ apt install qemu-system-x86 expect netcat curl jq unzip grep awk sed diffutils
 ### 1. Create Eve-NG Template (download CHR + generate YAML)
 
 ```bash
-./eveng-mikrotik.sh crs309 7.23.1
+./build-mikrotik-qemu.sh crs309 7.23.1
 ```
 
 Arguments:

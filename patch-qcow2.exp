@@ -40,7 +40,7 @@ exp_internal 1
 log_file /tmp/chr-debug.log
 log_user 1
 
-spawn telnet 127.0.0.1 6001
+spawn telnet 127.0.0.1 $serial_port
 
 send_user "\n=== Connected ===\n"
 send "\r"

@@ -20,6 +20,8 @@
 #   -h, --help          Show this help message and exit
 #   --monitor-port N    QEMU monitor port (default: 6000)
 #   --serial-port  N    Serial console port (default: 6001)
+#   --rnd-prefix   S    4-char random prefix for temp files (default: none)
+#   --dev               Dev mode - keep temp files
 #   --verbose           Show detailed progress
 #
 # EXAMPLE:
@@ -47,9 +49,15 @@ log() {
 # Returns the path to the generated RSC file.
 generate_rsc() {
    local model="$1"
+   local rnd_prefix="$2"
    local json_file="templates/${model}.json"
    local template_file="templates/mikrotik-template.rsc"
-   local output_file="/tmp/${model}.rsc"
+
+   if [ -n "$rnd_prefix" ]; then
+      local output_file="/tmp/${rnd_prefix}-${model}.rsc"
+   else
+      local output_file="/tmp/${model}.rsc"
+   fi
 
    if [ ! -f "$json_file" ]; then
       echo "Error: Model JSON file not found: $json_file"
@@ -87,9 +95,9 @@ generate_rsc() {
        d
    }" "$output_file"
 
-   rm -f "$rename_tmp"
+    rm -f "$rename_tmp"
 
-   log "Generated RSC: $output_file (${ether_ports} ports)"
+    log "Generated RSC: $output_file (${ether_ports} ports)"
    echo "$output_file"
 }
 
@@ -97,7 +105,7 @@ MAIN() {
    check_dependencies
 
    if [ $# -lt 1 ]; then
-      echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--verbose]"
+      echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--dev] [--verbose]"
       exit 1
    fi
 
@@ -115,6 +123,8 @@ MAIN() {
    MONITOR_PORT=6000
    SERIAL_PORT=6001
    VERBOSE=false
+   DEV_MODE=false
+   RND_PREFIX=""
 
    while [ $# -gt 1 ]; do
       case "${2:-}" in
@@ -126,20 +136,28 @@ MAIN() {
             SERIAL_PORT="${3:?--serial-port requires a value}"
             shift 2
             ;;
+         --rnd-prefix)
+            RND_PREFIX="${3:?--rnd-prefix requires a value}"
+            shift 2
+            ;;
+         --dev)
+            DEV_MODE=true
+            shift
+            ;;
          --verbose)
             VERBOSE=true
             shift
             ;;
          *)
             echo "Unknown option: ${2:-}"
-            echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--verbose]"
+            echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--dev] [--verbose]"
             exit 1
             ;;
       esac
    done
 
    # Generate the per-model RSC from JSON + template
-   RSC_GENERATED="$(generate_rsc "$MODEL")"
+   RSC_GENERATED="$(generate_rsc "$MODEL" "$RND_PREFIX")"
 
    if [ "$VERBOSE" = true ]; then
       log "Starting QEMU for $MODEL patching..."
