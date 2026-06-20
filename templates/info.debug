@@ -4,7 +4,8 @@
 # eveng-mikrotik: @@GIT_TAG@@
 # EVE-NG: @@EVE-NG_VERSION@@
 #
-# @@BUILD_MIKROTIK_QEMU_CMD@@
-# @@PATCH_QCOW2_SH_CMD@@
-# @@PATCH_QCOW2_EXP_CMD@@
+# Commands:
+#   @@BUILD_MIKROTIK_QEMU_CMD@@
+#   @@PATCH_QCOW2_SH_CMD@@
+#   @@PATCH_QCOW2_EXP_CMD@@
 #
