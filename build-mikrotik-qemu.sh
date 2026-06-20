@@ -2,16 +2,18 @@
 # =============================================================================
 # build-mikrotik-qemu.sh - Download MikroTik CHR and create Eve-NG templates
 #
-# PURPOSE:   Download a MikroTik CHR image, create a QEMU directory, and
+# PURPOSE:   Download a MikroTik CHR image, create a QEMU directory,
 #            generate an architecture-specific Eve-NG template for the
-#            specified model and version.
+#            specified model and version, and optionally patch the image
+#            with model-specific RouterOS configuration.
 # AUTHOR:    Sean Crites
 # VERSION:   1.0.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
 #
 # DEPENDENCIES:
-#   - curl, jq, unzip, grep, awk, sed, mkdir, mv, diff
+#   - curl, jq, unzip, grep, awk, sed, mkdir, mv, diff, qemu-system-x86_64,
+#     expect, nc (latter three required only when patching)
 #
 # USAGE:
 #   ./build-mikrotik-qemu.sh MODEL VERSION [OPTIONS]
@@ -24,11 +26,34 @@
 #
 # EXAMPLE:
 #   ./build-mikrotik-qemu.sh crs309 7.22.1 --dev --verbose
+#   ./build-mikrotik-qemu.sh crs309 7.22.1 --no-patch   # build only, no patching
 #
 
 # Proxy configuration (edit if needed; leave empty to disable)
-# PROXY="http://your-proxy:port"
+PROXY=""
 
+VERBOSE=false
+FORCE=false
+DEV_MODE=false
+NO_PATCH=false
+MODEL=""
+VERSION=""
+TPL_SUBDIR=""
+HTML_BASE=""
+INCLUDES_DIR=""
+QEMU_BASE=""
+TEMPLATES_BASE=""
+CUSTOM_YML=""
+DESCRIPTION=""
+NUM_CPU=""
+RAM=""
+ETHER_PORTS=""
+DIR_PREFIX=""
+QEMU_DIR=""
+
+# ---------------------------------------------------------------------------
+# check_dependencies - Verify all required CLI tools are available
+# ---------------------------------------------------------------------------
 check_dependencies() {
    local deps="curl jq unzip grep awk sed mkdir mv diff"
    for dep in $deps; do
@@ -39,30 +64,27 @@ check_dependencies() {
    done
 }
 
+# ---------------------------------------------------------------------------
+# show_help - Print usage information and exit
+# ---------------------------------------------------------------------------
 show_help() {
    echo "Usage: $0 MODEL VERSION [OPTIONS]"
    echo ""
    echo "Creates MikroTik CHR model template for Eve-NG."
    echo ""
    echo "Options:"
-   echo "  --help     Show this help"
-   echo "  --verbose  Show detailed step-by-step progress"
-   echo "  --force    Overwrite existing files/directories without prompting"
-   echo "  --dev      Use abbreviated dev directory structure for local testing"
+   echo "  --help         Show this help"
+   echo "  --verbose      Show detailed step-by-step progress"
+   echo "  --force        Overwrite existing files/directories without prompting"
+   echo "  --dev          Use abbreviated dev directory structure for local testing"
+   echo "  --no-patch, -n Skip the QEMU patching step (build only)"
    exit 0
 }
 
-main() {
-   # Preflight
-   check_dependencies
-
-   VERBOSE=false
-   FORCE=false
-   DEV_MODE=false
-   MODEL=""
-   VERSION=""
-
-   # Parse arguments
+# ---------------------------------------------------------------------------
+# parse_args - Parse command-line arguments, set MODEL, VERSION, and flags
+# ---------------------------------------------------------------------------
+parse_args() {
    while [ $# -gt 0 ]; do
       case "$1" in
          --help|-h)
@@ -76,6 +98,9 @@ main() {
             ;;
          --dev)
             DEV_MODE=true
+            ;;
+         --no-patch|-n)
+            NO_PATCH=true
             ;;
          *)
             if [ -z "$MODEL" ]; then
@@ -95,12 +120,12 @@ main() {
       echo "Error: MODEL and VERSION are required."
       show_help
    fi
+}
 
-   if [ "$VERBOSE" = true ]; then
-      echo "=== Starting Eve-NG MikroTik CHR setup for model '$MODEL' version '$VERSION' ==="
-   fi
-
-   # Host architecture (needed early for dev paths)
+# ---------------------------------------------------------------------------
+# detect_architecture - Set TPL_SUBDIR based on host CPU architecture
+# ---------------------------------------------------------------------------
+detect_architecture() {
    if grep -qi amd /proc/cpuinfo; then
       TPL_SUBDIR="amd"
    else
@@ -110,8 +135,12 @@ main() {
    if [ "$VERBOSE" = true ]; then
       echo "Detected architecture: $TPL_SUBDIR"
    fi
+}
 
-   # Path configuration (dev mode for local testing)
+# ---------------------------------------------------------------------------
+# setup_paths - Set all directory and file paths based on DEV_MODE
+# ---------------------------------------------------------------------------
+setup_paths() {
    if [ "$DEV_MODE" = true ]; then
       HTML_BASE="./dev_html"
       INCLUDES_DIR="./dev_html_includes"
@@ -128,20 +157,24 @@ main() {
    fi
 
    CUSTOM_YML="${INCLUDES_DIR}/custom_templates.yml"
+}
+
+# ---------------------------------------------------------------------------
+# load_model_config - Validate model JSON exists and extract fields
+# ---------------------------------------------------------------------------
+load_model_config() {
+   local JSON_FILE="templates/${MODEL}.json"
 
    if [ "$VERBOSE" = true ]; then
-      echo "Loading model data from templates/${MODEL}.json..."
+      echo "Loading model data from ${JSON_FILE}..."
    fi
 
-   # JSON check
-   JSON_FILE="templates/${MODEL}.json"
    if [ ! -f "$JSON_FILE" ]; then
       echo "Error: Model '$MODEL' not supported. JSON file '$JSON_FILE' is missing."
       echo "Add the JSON file to the templates/ directory to support this model."
       exit 1
    fi
 
-   # Load JSON values
    DESCRIPTION=$(jq -r '.description' "$JSON_FILE")
    NUM_CPU=$(jq -r '.num_cpu' "$JSON_FILE")
    RAM=$(jq -r '.ram' "$JSON_FILE")
@@ -151,9 +184,14 @@ main() {
    if [ "$VERBOSE" = true ]; then
       echo "Model: $DESCRIPTION (prefix: $DIR_PREFIX)"
    fi
+}
 
-   # Qemu directory (script only creates this one, per requirements)
+# ---------------------------------------------------------------------------
+# create_qemu_directory - Create the model/version QEMU directory with prompt
+# ---------------------------------------------------------------------------
+create_qemu_directory() {
    QEMU_DIR="${QEMU_BASE}/mikrotik-${MODEL}-${VERSION}"
+
    if [ -d "$QEMU_DIR" ] && [ "$FORCE" = false ]; then
       echo "Warning: Directory $QEMU_DIR already exists."
       read -p "Overwrite existing files? (y/N): " confirm
@@ -167,11 +205,15 @@ main() {
    if [ "$VERBOSE" = true ]; then
       echo "Created/using qemu directory: $QEMU_DIR"
    fi
+}
 
-   # Download (always run for new versions)
-   ZIP_FILE="/tmp/chr-${VERSION}.img.zip"
-   IMG_NAME="chr-${VERSION}.img"
-   URL="https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
+# ---------------------------------------------------------------------------
+# download_image - Download CHR image, unzip, and place as hda.qcow2
+# ---------------------------------------------------------------------------
+download_image() {
+   local ZIP_FILE="/tmp/chr-${VERSION}.img.zip"
+   local IMG_NAME="chr-${VERSION}.img"
+   local URL="https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
 
    if [ "$VERBOSE" = true ]; then
       echo "Downloading from $URL..."
@@ -188,7 +230,6 @@ main() {
       exit 1
    fi
 
-   # Unzip and move
    unzip -o "$ZIP_FILE" -d /tmp/
    if [ ! -f "/tmp/$IMG_NAME" ]; then
       echo "Error: Unzip failed to produce $IMG_NAME"
@@ -201,13 +242,19 @@ main() {
       echo "Image placed as ${QEMU_DIR}/hda.qcow2"
    fi
 
-   # Generate template candidate
-   TEMPLATE_SRC="templates/mikrotik-template-${TPL_SUBDIR}.yml"
-   TPL_OUT="${TEMPLATES_BASE}/${DIR_PREFIX}.yml"
-   TMP_MERGED="/tmp/merged_${DIR_PREFIX}.yml"
-   ETH_LIST_TMP="/tmp/eth_list.txt"
+   rm -f "$ZIP_FILE"
+}
 
-   jq -r '.ether_names | map("  - " + .) | join("\n")' "$JSON_FILE" > "$ETH_LIST_TMP"
+# ---------------------------------------------------------------------------
+# generate_template - Substitute placeholders, write template with smart diff
+# ---------------------------------------------------------------------------
+generate_template() {
+   local TEMPLATE_SRC="templates/mikrotik-template-${TPL_SUBDIR}.yml"
+   local TPL_OUT="${TEMPLATES_BASE}/${DIR_PREFIX}.yml"
+   local TMP_MERGED="/tmp/merged_${DIR_PREFIX}.yml"
+   local ETH_LIST_TMP="/tmp/eth_list.txt"
+
+   jq -r '.ether_names | map("  - " + .) | join("\n")' "templates/${MODEL}.json" > "$ETH_LIST_TMP"
 
    awk -v desc="$DESCRIPTION" \
        -v prefix="$DIR_PREFIX" \
@@ -258,7 +305,14 @@ main() {
       fi
    fi
 
-   # Update custom_templates.yml
+   # Clean up template-specific temp files
+   rm -f "$ETH_LIST_TMP" "$TMP_MERGED" 2>/dev/null || true
+}
+
+# ---------------------------------------------------------------------------
+# register_custom_template - Add model entry to custom_templates.yml if new
+# ---------------------------------------------------------------------------
+register_custom_template() {
    if [ ! -f "$CUSTOM_YML" ]; then
       echo "custom_templates:" > "$CUSTOM_YML"
    fi
@@ -277,15 +331,71 @@ main() {
          echo "Template already registered in custom_templates.yml (skipped)"
       fi
    fi
+}
 
-   # Cleanup
-   rm -f "$ZIP_FILE" "$ETH_LIST_TMP" "$TMP_MERGED" 2>/dev/null || true
+# ---------------------------------------------------------------------------
+# run_patch - Boot the CHR image, apply RouterOS config, then shutdown
+# ---------------------------------------------------------------------------
+run_patch() {
+   local PATCH_SCRIPT
+   PATCH_SCRIPT="$(dirname "$0")/patch-qcow2.sh"
 
+   if [ ! -f "$PATCH_SCRIPT" ]; then
+      echo "Warning: patch-qcow2.sh not found at $PATCH_SCRIPT. Skipping patching."
+      return
+   fi
+
+   local PATCH_ARGS=""
+   [ "$VERBOSE" = true ] && PATCH_ARGS="--verbose"
+
+   echo ""
+   echo "=== Starting QEMU image patching ($MODEL) ==="
+
+   "$PATCH_SCRIPT" "${QEMU_DIR}/hda.qcow2" $PATCH_ARGS
+   local PATCH_EXIT=$?
+
+   if [ "$PATCH_EXIT" -ne 0 ]; then
+      echo ""
+      echo "ERROR: Patching failed with exit code $PATCH_EXIT."
+      exit "$PATCH_EXIT"
+   fi
+
+   echo "=== Patching complete ==="
+}
+
+# ---------------------------------------------------------------------------
+# print_summary - Display success message with QEMU image and template paths
+# ---------------------------------------------------------------------------
+print_summary() {
    echo ""
    echo "Success! MikroTik $DESCRIPTION ($VERSION) has been added to Eve-NG."
    echo "QEMU image: $QEMU_DIR/hda.qcow2"
-   echo "Template: $TPL_OUT"
+   echo "Template: ${TEMPLATES_BASE}/${DIR_PREFIX}.yml"
+   if [ "$NO_PATCH" = false ]; then
+      echo "Image has been patched with model-specific RouterOS configuration."
+   else
+      echo "NOTE: Patching was skipped (--no-patch). Image has NOT been configured."
+   fi
    echo "You can now add the node in Eve-NG using the template name '$DIR_PREFIX'."
+}
+
+# ---------------------------------------------------------------------------
+# main - Orchestrate the full build process
+# ---------------------------------------------------------------------------
+main() {
+   check_dependencies
+   parse_args "$@"
+   detect_architecture
+   setup_paths
+   load_model_config
+   create_qemu_directory
+   download_image
+   generate_template
+   register_custom_template
+   if [ "$NO_PATCH" = false ]; then
+      run_patch
+   fi
+   print_summary
 }
 
 main "$@"
