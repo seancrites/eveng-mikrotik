@@ -147,6 +147,16 @@ MAIN() {
       log "  Monitor:  telnet 127.0.0.1:$MONITOR_PORT"
       log "  Serial:   telnet 127.0.0.1:$SERIAL_PORT"
       log "  RSC:      $RSC_GENERATED"
+      log "  Command:"
+      log "    nohup qemu-system-x86_64 \\"
+      log "      -machine type=pc,accel=kvm \\"
+      log "      -smp 2 -m 1024 \\"
+      log "      -drive file=$QCOW2,format=raw,if=ide \\"
+      log "      -nographic -no-user-config -nodefaults \\"
+      log "      -display none -vga std -rtc base=utc \\"
+      log "      -monitor telnet:127.0.0.1:$MONITOR_PORT,server,nowait \\"
+      log "      -serial telnet:127.0.0.1:$SERIAL_PORT,server,nowait \\"
+      log "      >/dev/null 2>&1 &"
    fi
 
    nohup qemu-system-x86_64 \
@@ -177,6 +187,7 @@ MAIN() {
    fi
 
    log "Serial port ready. Running expect script..."
+   [ "$VERBOSE" = true ] && log "  Command: expect $(dirname "$0")/patch-qcow2.exp $MODEL $SERIAL_PORT $MONITOR_PORT $RSC_GENERATED"
 
    expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED"
    EXPECT_EXIT=$?
