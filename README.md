@@ -1,6 +1,8 @@
 # eveng-mikrotik
 
-Automated tooling for integrating MikroTik CHR (Cloud Hosted Router) images into Eve-NG (Emulated Virtual Environment-Next Generation). Downloads official CHR releases, generates Eve-NG QEMU templates with per-model interface mappings, and patches disk images with RouterOS configuration before first boot.
+Drop a vanilla CHR into Eve-NG and you get four `ether` interfaces — fine for a quick test drive, but useless for building a real network. To lab a proof of concept, mimic a production topology, or validate a config before touching hardware, you need interfaces that match the real thing. Manually adding ports in Eve-NG and renaming them inside the CHR is tedious, fragile, and often doesn't survive a reboot.
+
+This project aims to fix that. It downloads official MikroTik CHR images, generates Eve-NG QEMU templates with per-model interface mappings (correct port counts, types, and names), and patches the disk image with a RouterOS configuration that renames interfaces to match their physical hardware equivalents. The result: a CHR that looks and acts like a CCR2004, CRS309, RB5009, or any supported model — so the config you build in the lab can be copied to production hardware with minimal edits.
 
 ## Features
 
@@ -70,7 +72,7 @@ apt install qemu-system-x86 expect netcat curl jq unzip grep awk sed diffutils
 ### 1. Create Eve-NG Template (download CHR + generate YAML)
 
 ```bash
-./eveng-mikrotik.sh crs309 7.23.1 --verbose --force
+./eveng-mikrotik.sh crs309 7.23.1
 ```
 
 Arguments:
@@ -103,17 +105,19 @@ Options:
 ## How Patch Works
 
 1. **RSC Generation** — `patch-qcow2.sh` reads `templates/<model>.json` and `templates/mikrotik-template.rsc`, expands the `@@ETHER_PORTS@@`, `@@ETHER_NAMES_RENAME@@`, and `@@NAME@@` placeholders, and writes the result to `/tmp/<model>.rsc`. Ethernet port count is derived from the `ether_names` array in the JSON.
-2. **QEMU Launch** — starts `qemu-system-x86_64` with telnet-backed monitor/serial on configurable ports.
-3. **Readiness Poll** — polls serial port up to 15s until QEMU accepts connections.
-4. **Expect Script** — `patch-qcow2.exp` connects via telnet to the serial port and:
-   - Presses Enter to bypass blank-line boot prompts
-   - Matches `CHR Login:` or `MikroTik Login:` with `(?i).*login:`
-   - Logs in as `admin` with blank password
-   - Skips password-change prompt with Ctrl-C if it appears
-   - Waits for `[admin@HOSTNAME]` prompt
-   - Reads the generated RSC from `/tmp/<model>.rsc` and applies it, then applies optional `global-custom.rsc` and `<model>-custom.rsc` if present
-   - Sends `/system shutdown` and exits cleanly
-5. **Cleanup** — bash polls for QEMU process to exit (up to ~60s); if still running, sends `quit` to the monitor port via `nc`.
+2. **QEMU Launch** — starts `qemu-system-x86_64` in the background with telnet-backed monitor/serial on configurable ports.
+3. **Readiness Poll** — polls serial port every 2s up to 15s until QEMU accepts connections.
+4. **Expect Script** — `patch-qcow2.exp` connects via telnet to the serial console and:
+   - Sends a carriage return to wake the console
+   - Waits for the `MikroTik` banner
+   - Matches `Login:` prompt and logs in as `admin+tce` with a blank password
+   - If a software license prompt appears, answers `n`
+   - If a password change prompt appears, sends Ctrl-C to skip it
+   - Waits for the `>` CLI prompt
+   - Reads and applies RSC files in layered order (generated model RSC from `/tmp/`, then optional `global-custom.rsc` and `<model>-custom.rsc` from `templates/`)
+   - Each RSC file is read in full and pasted as a single block, then waits for the prompt to return
+   - Sends `system shutdown` and confirms with `y`
+5. **Cleanup** — bash polls for QEMU process to exit (up to ~60s every 2s); if still running, sends `quit` to the monitor port via `nc`.
 
 ### RSC Customization
 
