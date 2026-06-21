@@ -65,12 +65,13 @@ MONITOR_PORT=""
 SERIAL_PORT=""
 INFO_DEBUG_FILE=""
 PATCH_SUMMARY_FILE=""
+CACHE_DIR=""
 
 # ---------------------------------------------------------------------------
 # check_dependencies - Verify all required CLI tools are available
 # ---------------------------------------------------------------------------
 check_dependencies() {
-   local deps="curl jq unzip grep awk sed mkdir mv diff"
+   local deps="curl jq unzip grep awk sed mkdir mv diff sha256sum"
    for dep in $deps; do
       if ! command -v "$dep" >/dev/null 2>&1; then
          echo "Error: Required dependency '$dep' is not available. Please install it."
@@ -355,29 +356,114 @@ create_qemu_directory() {
 }
 
 # ---------------------------------------------------------------------------
-# download_image - Download CHR image, unzip, and place as hda.qcow2
+# download_image - Download CHR image (with cache + checksum), unzip, place
 # ---------------------------------------------------------------------------
 download_image() {
-   local ZIP_FILE="/tmp/chr-${VERSION}.img.zip"
+   local CACHED_ZIP="${CACHE_DIR}/chr-${VERSION}.img.zip"
+   local CACHED_SHA="${CACHE_DIR}/chr-${VERSION}.img.zip.sha256"
    local IMG_NAME="chr-${VERSION}.img"
    local URL="https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
+   local SHA_URL="${URL}.sha256"
+   local TMP_ZIP="/tmp/chr-${VERSION}.img.zip"
 
-   if [ "$VERBOSE" = true ]; then
-      echo "Downloading from $URL..."
+   # If cached zip already exists and checksum is valid, skip download
+   if [ -f "$CACHED_ZIP" ]; then
+       echo "Found cached image: $CACHED_ZIP"
+
+      # Ensure the matching sha256 file is available for verification
+      if [ ! -f "$CACHED_SHA" ]; then
+         if [ "$VERBOSE" = true ]; then
+            echo "Downloading sha256 checksum for verification..."
+         fi
+         if [ -n "${PROXY:-}" ]; then
+            curl -fL --proxy "$PROXY" -o "$CACHED_SHA" "$SHA_URL"
+         else
+            curl -fL -o "$CACHED_SHA" "$SHA_URL"
+         fi
+      fi
+
+      pushd "$CACHE_DIR" >/dev/null
+      if sha256sum -c "$(basename "$CACHED_SHA")" >/dev/null 2>&1; then
+         if [ "$VERBOSE" = true ]; then
+            echo "Cached image checksum is valid. Skipping download."
+         fi
+         popd >/dev/null
+      else
+         echo "Warning: Cached image checksum mismatch for $CACHED_ZIP."
+         if [ "$FORCE" = false ]; then
+            read -rp "Re-download? (y/N): " confirm
+            if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+               echo "Aborted."
+               exit 0
+            fi
+         fi
+         popd >/dev/null
+         CACHED_ZIP=""  # force re-download
+      fi
    fi
 
-   if [ -n "${PROXY:-}" ]; then
-      curl -fL --proxy "$PROXY" -o "$ZIP_FILE" "$URL"
-   else
-      curl -fL -o "$ZIP_FILE" "$URL"
+   # Download if not cached or was invalidated
+   if [ -z "${CACHED_ZIP:-}" ] || [ ! -f "${CACHED_ZIP:-}" ]; then
+      # Download sha256 first if not already present
+      if [ ! -f "$CACHED_SHA" ]; then
+         if [ "$VERBOSE" = true ]; then
+            echo "Downloading sha256 checksum from $SHA_URL..."
+         fi
+         if [ -n "${PROXY:-}" ]; then
+            curl -fL --proxy "$PROXY" -o "$CACHED_SHA" "$SHA_URL"
+         else
+            curl -fL -o "$CACHED_SHA" "$SHA_URL"
+         fi
+         if [ ! -f "$CACHED_SHA" ]; then
+            echo "Error: Failed to download sha256 checksum."
+            exit 1
+         fi
+      fi
+
+      if [ "$VERBOSE" = true ]; then
+         echo "Downloading CHR image from $URL..."
+      fi
+
+      # Check if cached zip already exists and prompt for overwrite
+      if [ -f "$CACHED_ZIP" ]; then
+         if [ "$FORCE" = false ]; then
+            read -rp "Cache file $(basename "$CACHED_ZIP") already exists. Overwrite? (y/N): " confirm
+            if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+               echo "Aborted."
+               exit 0
+            fi
+         fi
+      fi
+
+      if [ -n "${PROXY:-}" ]; then
+         curl -fL --proxy "$PROXY" -o "$CACHED_ZIP" "$URL"
+      else
+         curl -fL -o "$CACHED_ZIP" "$URL"
+      fi
+
+      if [ ! -f "$CACHED_ZIP" ]; then
+         echo "Error: Download failed."
+         exit 1
+      fi
+
+      # Verify checksum
+      pushd "$CACHE_DIR" >/dev/null
+      if ! sha256sum -c "$(basename "$CACHED_SHA")" >/dev/null 2>&1; then
+         echo "Error: Checksum verification failed for $(basename "$CACHED_ZIP")."
+         popd >/dev/null
+         exit 1
+      fi
+      if [ "$VERBOSE" = true ]; then
+         echo "Checksum verified."
+      fi
+      popd >/dev/null
    fi
 
-   if [ ! -f "$ZIP_FILE" ]; then
-      echo "Error: Download failed."
-      exit 1
-   fi
+   # Unzip to /tmp and move into place
+   cp "$CACHED_ZIP" "$TMP_ZIP"
+   unzip -o "$TMP_ZIP" -d /tmp/
+   rm -f "$TMP_ZIP"
 
-   unzip -o "$ZIP_FILE" -d /tmp/
    if [ ! -f "/tmp/$IMG_NAME" ]; then
       echo "Error: Unzip failed to produce $IMG_NAME"
       exit 1
@@ -388,8 +474,6 @@ download_image() {
    if [ "$VERBOSE" = true ]; then
       echo "Image placed as ${QEMU_DIR}/hda.qcow2"
    fi
-
-   rm -f "$ZIP_FILE"
 }
 
 # ---------------------------------------------------------------------------
@@ -576,11 +660,13 @@ main() {
    check_dependencies
    parse_args "$@"
    generate_debug_prefix
+   CACHE_DIR="./cache"
    setup_log_file
    detect_architecture
    setup_paths
    load_model_config
    create_qemu_directory
+   mkdir -p "$CACHE_DIR"
    download_image
    resolve_ports
    if [ "$DEBUG" = true ]; then
