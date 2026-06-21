@@ -14,7 +14,7 @@
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
 #
 # DEPENDENCIES:
-#   - bash, sed, sort, jq, tr
+#   - bash, sed, sort, jq, tr, awk
 #
 # USAGE:
 #   ./build-mikrotik-json.sh MODEL
@@ -23,6 +23,9 @@
 #   crs510-8xs-2xq
 #   CRS326-24G-2S+IN
 #   crs305-1gf-16x
+#
+# WARNING:   This script is still in development. Use with caution and
+#            verify output before relying on it.
 #
 # Variant suffixes (-IN, -RM, -OUT) are stripped automatically. Only the
 # base model name is used for the output filename.
@@ -43,6 +46,7 @@ MODEL_INPUT=""
 MODEL_BASE=""
 MODEL_JSON=""
 INTERFACE_LIST=""
+INTERFACE_TYPE_SUMMARY=""
 
 # ---------------------------------------------------------------------------
 # abbr_to_root - Map a port abbreviation to its RouterOS interface root name
@@ -62,6 +66,7 @@ abbr_to_root() {
       gf|g+|p+|xg|xp|fi|fr|fp|f|g|p|x)
              echo "ether"     ;;
       c|c+) echo "combo"     ;;
+      q+)   echo "qsfpplus"     ;;
       *)    echo "unknown"   ;;
    esac
 }
@@ -174,8 +179,52 @@ parse_model() {
       prev="$line"
    done < "/tmp/${MODEL_BASE}_ifaces.txt"
    rm -f "/tmp/${MODEL_BASE}_ifaces.txt"
-   INTERFACE_LIST="$(printf '%s ' "${unique[@]}")"
+
+   INTERFACE_LIST=""
+   local iface
+   for iface in "${unique[@]}"; do
+      INTERFACE_LIST+="$iface "
+   done
    INTERFACE_LIST="$(printf '%s' "$INTERFACE_LIST" | xargs)"
+
+   # Build interface type summary by matching known root prefixes
+   # against each interface name.  This preserves multi-digit roots
+   # like "qsfp28" and "sfp-sfpplus" correctly.
+   if [ -n "$INTERFACE_LIST" ]; then
+      INTERFACE_TYPE_SUMMARY="$(printf '%s\n' "$INTERFACE_LIST" | tr ' ' '\n' | awk '
+         {
+            name = $0
+            # Check known roots, longest first to avoid partial matches
+            if      (index(name, "qsfp28") == 1)     { counts["qsfp28"]++ }
+            else if (index(name, "sfp-sfpplus") == 1) { counts["sfp-sfpplus"]++ }
+            else if (index(name, "sfp28") == 1)      { counts["sfp28"]++ }
+            else if (index(name, "ether") == 1)      { counts["ether"]++ }
+            else if (index(name, "combo") == 1)      { counts["combo"]++ }
+            else if (index(name, "qsfpplus") == 1)   { counts["qsfpplus"]++ }
+            else { counts["unknown"]++ }
+         }
+         END {
+            # Sort keys manually for POSIX compatibility
+            n = 0
+            for (k in counts) {
+               n++
+               keys[n] = k
+            }
+            for (i = 1; i <= n; i++) {
+               for (j = i + 1; j <= n; j++) {
+                  if (keys[i] > keys[j]) {
+                     tmp = keys[i]; keys[i] = keys[j]; keys[j] = tmp
+                  }
+               }
+            }
+            for (i = 1; i <= n; i++) {
+               printf "%s: %d\n", keys[i], counts[keys[i]]
+            }
+         }
+      ')"
+   else
+      INTERFACE_TYPE_SUMMARY=""
+   fi
 }
 
 # ---------------------------------------------------------------------------
@@ -200,8 +249,10 @@ generate_json() {
    port_count="$(printf '%s' "$INTERFACE_LIST" | wc -w)"
 
    # Assemble JSON document
-   jq -n \
+   local new_json
+   new_json="$(jq -n \
       --arg name "$MODEL_BASE" \
+      --arg model "$MODEL_INPUT" \
       --arg description "MikroTik ${MODEL_BASE^^}" \
       --argjson num_cpu 1 \
       --argjson ram 256 \
@@ -209,12 +260,76 @@ generate_json() {
       --argjson ether_names "$iface_json" \
       '{
          name: $name,
+         model: $model,
          description: $description,
          num_cpu: $num_cpu,
          ram: $ram,
          ether_ports: $ether_ports,
          ether_names: $ether_names
-      }' > "$MODEL_JSON"
+      }')"
+
+   # If the JSON file already exists, show Current/New summaries and
+   # prompt before overwriting.
+   if [ -f "$MODEL_JSON" ]; then
+      local old_count
+      old_count="$(jq '.ether_ports' "$MODEL_JSON")"
+
+      # Build interface type summary for the existing file
+      local existing_summary=""
+      local existing_names
+      existing_names="$(jq -r '.ether_names[]' "$MODEL_JSON")"
+      if [ -n "$existing_names" ]; then
+         existing_summary="$(printf '%s\n' "$existing_names" | awk '
+            {
+               name = $0
+               if      (index(name, "qsfp28") == 1)     { counts["qsfp28"]++ }
+               else if (index(name, "sfp-sfpplus") == 1) { counts["sfp-sfpplus"]++ }
+               else if (index(name, "sfp28") == 1)      { counts["sfp28"]++ }
+               else if (index(name, "ether") == 1)      { counts["ether"]++ }
+               else if (index(name, "combo") == 1)      { counts["combo"]++ }
+               else { counts["unknown"]++ }
+            }
+            END {
+               n = 0
+               for (k in counts) { n++; keys[n] = k }
+               for (i = 1; i <= n; i++) {
+                  for (j = i + 1; j <= n; j++) {
+                     if (keys[i] > keys[j]) { tmp = keys[i]; keys[i] = keys[j]; keys[j] = tmp }
+                  }
+               }
+               for (i = 1; i <= n; i++) { printf "%s: %d\n", keys[i], counts[keys[i]] }
+            }
+         ')"
+      fi
+
+      echo ""
+      echo "WARNING: $MODEL_JSON already exists."
+      echo "Current:"
+      if [ -n "$existing_summary" ]; then
+         while IFS= read -r line; do
+            [ -n "$line" ] && echo "  $line"
+         done <<< "$existing_summary"
+      else
+         echo "  (no interfaces)"
+      fi
+      echo ""
+      echo "New:"
+      if [ -n "$INTERFACE_TYPE_SUMMARY" ]; then
+         while IFS= read -r line; do
+            [ -n "$line" ] && echo "  $line"
+         done <<< "$INTERFACE_TYPE_SUMMARY"
+      else
+         echo "  (no interfaces)"
+      fi
+      echo ""
+      read -rp "Overwrite existing file? (y/N): " confirm
+      if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+         echo "Skipped overwrite. JSON file left unchanged."
+         return
+      fi
+   fi
+
+   printf '%s\n' "$new_json" > "$MODEL_JSON"
 }
 
 # ---------------------------------------------------------------------------
@@ -237,6 +352,14 @@ main() {
       printf '%s\n' "$INTERFACE_LIST" | tr ' ' '\n'
    else
       echo "  (no ports detected)"
+   fi
+
+   # Print a summary of interface type counts
+   if [ -n "$INTERFACE_TYPE_SUMMARY" ]; then
+      printf '\nInterface type summary for %s:\n' "${MODEL_BASE^^}"
+      while IFS= read -r line; do
+         [ -n "$line" ] && printf '  %s\n' "$line"
+      done <<< "$INTERFACE_TYPE_SUMMARY"
    fi
 
    printf '\nJSON written to: %s\n' "$MODEL_JSON"
