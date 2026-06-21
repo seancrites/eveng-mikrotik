@@ -210,7 +210,8 @@ MAIN() {
    log "Serial port ready. Running expect script..."
    [ "$VERBOSE" = true ] && log "  Command: expect $(dirname "$0")/patch-qcow2.exp $MODEL $SERIAL_PORT $MONITOR_PORT $RSC_GENERATED ${EXPECT_ARGS[*]}"
 
-   expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED" "${EXPECT_ARGS[@]}"
+   EXPECT_OUT="/tmp/${RND_PREFIX:+${RND_PREFIX}-}${MODEL}-expect-output.txt"
+   expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED" "${EXPECT_ARGS[@]}" > "$EXPECT_OUT" 2>&1
    EXPECT_EXIT=$?
 
    # Poll for QEMU process to exit (every 2s up to ~60s)
@@ -238,6 +239,10 @@ MAIN() {
       log "ERROR: expect script failed with exit code $EXPECT_EXIT"
       exit "$EXPECT_EXIT"
    fi
+
+   # Write summary file for build script by extracting relevant lines from expect output
+   SUMFILE="/tmp/${RND_PREFIX:+${RND_PREFIX}-}${MODEL}-patch-summary.txt"
+   grep -E "^Image has been patched|^Additional patches:|^  templates/" "$EXPECT_OUT" > "$SUMFILE" 2>/dev/null || true
 
    log "Patching complete."
    exit 0

@@ -58,6 +58,16 @@ if {$argc > 4} {
 set rsc_global_file "templates/global-custom.rsc"
 set rsc_custom_file "templates/${model}-custom.rsc"
 
+# Build sorted list of additional non-model-default RSC files that exist
+set additional_patches ""
+if {[file exists $rsc_global_file]} {
+    lappend additional_patches $rsc_global_file
+}
+if {[file exists $rsc_custom_file]} {
+    lappend additional_patches $rsc_custom_file
+}
+set additional_patches [lsort $additional_patches]
+
 if {$verbose || $debug} {
     log_user 1
 }
@@ -148,6 +158,14 @@ proc apply_rsc_file {rsc_file} {
     }
 
     puts "  -> Finished $rsc_file"
+}
+
+send_user "Image has been patched with interface overrides.\n"
+if {[llength $additional_patches] > 0} {
+    send_user "Additional patches:\n"
+    foreach f $additional_patches {
+        send_user "  $f\n"
+    }
 }
 
 apply_rsc_file $rsc_model_file

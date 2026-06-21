@@ -64,6 +64,7 @@ QEMU_DIR=""
 MONITOR_PORT=""
 SERIAL_PORT=""
 INFO_DEBUG_FILE=""
+PATCH_SUMMARY_FILE=""
 
 # ---------------------------------------------------------------------------
 # check_dependencies - Verify all required CLI tools are available
@@ -509,22 +510,28 @@ run_patch() {
       exit "$PATCH_EXIT"
    fi
 
-   echo "=== Patching complete ==="
+    echo "=== Patching complete ==="
+
+    if [ -n "$DEBUG_PREFIX" ]; then
+       PATCH_SUMMARY_FILE="/tmp/${DEBUG_PREFIX}-${MODEL}-patch-summary.txt"
+    else
+       PATCH_SUMMARY_FILE="/tmp/${MODEL}-patch-summary.txt"
+    fi
 }
 
 # ---------------------------------------------------------------------------
 # print_summary - Display success message with QEMU image and template paths
 # ---------------------------------------------------------------------------
 print_summary() {
-   echo ""
-   echo "Success! MikroTik $DESCRIPTION ($VERSION) has been added to Eve-NG."
-   echo "QEMU image: $QEMU_DIR/hda.qcow2"
-   echo "Template: ${TEMPLATES_BASE}/${DIR_PREFIX}.yml"
-   if [ "$NO_PATCH" = false ]; then
-      echo "Image has been patched with model-specific RouterOS configuration."
-   else
-      echo "NOTE: Patching was skipped (--no-patch). Image has NOT been configured."
-   fi
+    echo ""
+    echo "Success! MikroTik $DESCRIPTION ($VERSION) has been added to Eve-NG."
+    echo "QEMU image: $QEMU_DIR/hda.qcow2"
+    echo "Template: ${TEMPLATES_BASE}/${DIR_PREFIX}.yml"
+    if [ "$NO_PATCH" = false ] && [ -f "${PATCH_SUMMARY_FILE:-}" ]; then
+       cat "$PATCH_SUMMARY_FILE"
+    elif [ "$NO_PATCH" = true ]; then
+       echo "NOTE: Patching was skipped (--no-patch). Image has NOT been configured."
+    fi
 
    echo "You can now add the node in Eve-NG using the template name '$DIR_PREFIX'."
    if [ "$LOG" = true ] && [ -n "$LOG_FILE" ]; then
