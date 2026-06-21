@@ -305,6 +305,7 @@ setup_paths() {
    QEMU_BASE="/opt/unetlab/addons/qemu"
    TEMPLATES_BASE="${HTML_BASE}/tempplates/${TPL_SUBDIR}"
    CUSTOM_YML="${INCLUDES_DIR}/custom_templates.yml"
+   QEMU_DIR="${QEMU_BASE}/mikrotik-${MODEL}-${VERSION}"
 }
 
 # ---------------------------------------------------------------------------
@@ -335,19 +336,9 @@ load_model_config() {
 }
 
 # ---------------------------------------------------------------------------
-# create_qemu_directory - Create the model/version QEMU directory with prompt
+# create_qemu_directory - Create the model/version QEMU directory
 # ---------------------------------------------------------------------------
 create_qemu_directory() {
-   QEMU_DIR="${QEMU_BASE}/mikrotik-${MODEL}-${VERSION}"
-
-   if [ -d "$QEMU_DIR" ] && [ "$FORCE" = false ]; then
-      echo "Warning: Directory $QEMU_DIR already exists."
-      read -rp "Overwrite existing files? (y/N): " confirm
-      if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-         echo "Aborted."
-         exit 0
-      fi
-   fi
    mkdir -p "$QEMU_DIR"
 
    if [ "$VERBOSE" = true ]; then
@@ -469,6 +460,7 @@ download_image() {
       exit 1
    fi
 
+   mkdir -p "$QEMU_DIR"
    mv "/tmp/$IMG_NAME" "${QEMU_DIR}/hda.qcow2"
 
    if [ "$VERBOSE" = true ]; then
@@ -665,9 +657,9 @@ main() {
    detect_architecture
    setup_paths
    load_model_config
-   create_qemu_directory
    mkdir -p "$CACHE_DIR"
    download_image
+   create_qemu_directory
    resolve_ports
    if [ "$DEBUG" = true ]; then
       expand_debug_info
