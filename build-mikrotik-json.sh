@@ -62,11 +62,12 @@ abbr_to_root() {
    case "$abbr" in
       xs)   echo "sfp28"     ;;
       xq)   echo "qsfp28"    ;;
-      s+)   echo "sfp-sfpplus" ;;
+      s+|s)   echo "sfp-sfpplus" ;;
+      q+)   echo "qsfpplus"  ;;
+      q)    echo "qsfp28"    ;;
       gf|g+|p+|xg|xp|fi|fr|fp|f|g|p|x)
              echo "ether"     ;;
       c|c+) echo "combo"     ;;
-      q+)   echo "qsfpplus"     ;;
       *)    echo "unknown"   ;;
    esac
 }
@@ -92,33 +93,39 @@ parse_model() {
    [ -z "$raw_rest" ] && return
 
    # ------------------------------------------------------------------
-   # Step 1: Normalise '+' between port specs into a dash so that
-   #         dash-splitting covers both separators.
-   #         "12xs+2xs" -> "12xs-2xs", while "s+" stays intact because
-   #         the '+' is not followed by a digit.
+   # Step 1: Strip trailing variant suffixes (in/rm/out) from the end of
+   #         the port-spec string.  We only remove the suffix letters
+   #         themselves, leaving any preceding '+' intact because that
+   #         '+' belongs to the port code (e.g. "2q+rm" -> "2q+").
    local rest
-   rest="$(printf '%s' "$raw_rest" | sed -E 's/\+([0-9])/-\1/g')"
+   rest="$(printf '%s' "$raw_rest" | sed -E 's/(in|rm|out)$//')"
 
    # ------------------------------------------------------------------
-   # Step 2: Expand port spec segments into a local array.
+   # Step 2: Normalise '+' between port specs into a dash, but protect
+   #         the '+' that is part of known port codes (s+, g+, p+, c+).
+   #         "12xs+2xs" -> "12xs-2xs", "24s+2q" -> "24s+2q" intact.
+   local rest_protected
+   rest_protected="$(printf '%s' "$rest" | sed -E 's/([sgpc])\+([0-9])/\1@@\2/g')"
+   local rest_norm
+   rest_norm="$(printf '%s' "$rest_protected" | sed -E 's/\+([0-9])/-\1/g')"
+   rest="$(printf '%s' "$rest_norm" | sed 's/@@/+/g')"
+
+   # ------------------------------------------------------------------
+   # Step 3: Expand port spec segments into a local array.
    #   - Split on dashes.
-   #   - Within each batch, a '+' is a separator only when BOTH sides
-   #     start with digits (e.g. "12xs+2xs" -> "12xs","2xs").
+   #   - Extract port specs using grep -oE: patterns like \d+[a-z+]*
+   #     (digits followed by lowercase letters and optional trailing +).
+   #     This preserves port-code + (e.g. "2q+", "24s+") while correctly
+   #     handling variant suffixes that were already stripped.
    # ------------------------------------------------------------------
    local -a segments=()
    local batch
    for batch in $(printf '%s' "$rest" | tr '-' '\n'); do
       [ -z "$batch" ] && continue
-      if printf '%s' "$batch" | grep -qE '\+'; then
-         local rawSegs="$batch"
-         while [[ "$rawSegs" =~ ^([0-9]+[a-z]*\+[0-9]+[a-z]*)(.*)$ ]]; do
-            segments+=("${BASH_REMATCH[1]}")
-            rawSegs="${BASH_REMATCH[2]}"
-         done
-         [ -n "$rawSegs" ] && segments+=("$rawSegs")
-      else
-         segments+=("$batch")
-      fi
+      local seg
+      while IFS= read -r seg; do
+         [ -n "$seg" ] && segments+=("$seg")
+      done < <(printf '%s' "$batch" | grep -oE '[0-9]+[a-z+]*')
    done
 
    local segment count abbr
@@ -151,10 +158,17 @@ parse_model() {
 
       # Quad interfaces (qsfp28 / XQ) have sub-lanes; only list lane 1 since
       # we cannot emulate channelized optics in Eve-NG.
-      if [ "$root" = "qsfp28" ]; then
+      if [ "$root" = "qsfp28" ] || [ "$root" = "qsfpplus" ]; then
          local j
          for (( j=1; j<=count; j++ )); do
-            printf 'qsfp28-%d-1\n' "$j"
+            # Build port name: apply dash rule first, then append lane '-1'
+            local portname
+            if printf '%s' "$root" | grep -qE '[0-9]$'; then
+               portname="$(printf '%s-%d' "$root" "$j")"
+            else
+               portname="$(printf '%s%d' "$root" "$j")"
+            fi
+            printf '%s-1\n' "$portname"
          done
          continue
       fi
