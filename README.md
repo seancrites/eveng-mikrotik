@@ -24,7 +24,7 @@ Configuration details (interface names, etc.) are defined in `templates/<model>.
 MikroTik product codes encode the interface types and counts in their model name. The following table decodes the naming convention.
 
 | Connector | Model Suffix | Speed | Interface Type | Used On |
-|-----------|-------------|-------|---------------|---------|
+| ----------- | ------------- | ------- | --------------- | --------- |
 | `ether` | — | 1 Gbps | Copper RJ45 | RB5009, CRS326 |
 | `sfp-sfpplus` | `S+` | 1 / 10 Gbps | SFP / SFP+ | CCR2004, CRS309, CRS326, RB5009 |
 | `sfp28` | `S28` | 25 Gbps | SFP28 | CCR2004, CCR2216, CRS520 |
@@ -34,7 +34,7 @@ MikroTik product codes encode the interface types and counts in their model name
 ### Interface Inventory by Model
 
 | Full Model Code | 1G RJ45 | SFP+ (1 / 10G) | SFP28 (25G) | QSFP+ (40G) | QSFP28 (100G) |
-|-----------------|---------|---------------|-------------|-------------|---------------|
+| ----------------- | --------- | --------------- | ------------- | ------------- | --------------- |
 | `CCR2004-1G-12S+2XS` | 1 | 12 | 2 | — | — |
 | `CCR2216-1G-12S+2XS+2Q` | 1 | — | 12 | 2 | — |
 | `CRS309-1G-8S+` | 1 | 8 | — | — | — |
@@ -44,7 +44,7 @@ MikroTik product codes encode the interface types and counts in their model name
 
 ## Directory Structure
 
-```
+```console
 eveng-mikrotik/
 ├── build-mikrotik-qemu.sh      # Main download + template-generation script
 ├── patch-qcow2.sh              # QEMU boot + RSC generation + apply config + shutdown
@@ -64,7 +64,6 @@ eveng-mikrotik/
 Install required system packages:
 
 ```bash
-# Debian/Ubuntu
 apt install qemu-system-x86 expect netcat curl jq unzip grep awk sed diffutils
 ```
 
@@ -108,7 +107,7 @@ Options:
 The base RSC is generated on-the-fly from `templates/<model>.json`. Additional optional files are applied in layered order. Missing files are silently skipped.
 
 | Priority | File | Scope | Source |
-|----------|------|-------|--------|
+| ---------- | ------ | ------- | -------- |
 | 1 | | Model baseline (generated) | `mikrotik-template.rsc` + `<model>.json` |
 | 2 | `templates/global-custom.rsc` | Global defaults for all models | User-defined (gitignored) |
 | 3 | `templates/<model>-custom.rsc` | Model-specific overrides | User-defined (gitignored) |
@@ -116,7 +115,7 @@ The base RSC is generated on-the-fly from `templates/<model>.json`. Additional o
 ### Login Flow Handling
 
 | CHR Version | Login Prompt | Password Prompt | Post-Login |
-|-------------|-------------|-----------------|------------|
+| ------------- | ------------- | ----------------- | ------------ |
 | Pre-7.23    | `MikroTik Login:` | blank | skip password-change |
 | 7.23+       | `CHR Login:`      | blank | skip password-change |
 
