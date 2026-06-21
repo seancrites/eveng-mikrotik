@@ -13,39 +13,11 @@ This project aims to fix that. It downloads official MikroTik CHR images, genera
 - **Layered RSC configuration** — generated model default + global custom + model-specific custom applied in order
 - **Proxy support** for restricted network environments
 
-## Supported Models
-
-`ccr2004`, `ccr2216`, `crs309`, `crs326`, `crs520`, `rb5009`
-
-Configuration details (interface names, etc.) are defined in `templates/<model>.json`.
-
-### Interface Naming Reference
-
-MikroTik product codes encode the interface types and counts in their model name. The following table decodes the naming convention.
-
-| Connector | Model Suffix | Speed | Interface Type | Used On |
-| ----------- | ------------- | ------- | --------------- | --------- |
-| `ether` | — | 1 Gbps | Copper RJ45 | RB5009, CRS326 |
-| `sfp-sfpplus` | `S+` | 1 / 10 Gbps | SFP / SFP+ | CCR2004, CRS309, CRS326, RB5009 |
-| `sfp28` | `S28` | 25 Gbps | SFP28 | CCR2004, CCR2216, CRS520 |
-| `qsfpplus` | `Q+` | 40 Gbps | QSFP+ | CCR2216, CRS326 |
-| `qsfp28` | `Q28` | 100 Gbps | QSFP28 | CRS520 |
-
-### Interface Inventory by Model
-
-| Full Model Code | 1G RJ45 | SFP+ (1 / 10G) | SFP28 (25G) | QSFP+ (40G) | QSFP28 (100G) |
-| ----------------- | --------- | --------------- | ------------- | ------------- | --------------- |
-| `CCR2004-1G-12S+2XS` | 1 | 12 | 2 | — | — |
-| `CCR2216-1G-12S+2XS+2Q` | 1 | — | 12 | 2 | — |
-| `CRS309-1G-8S+` | 1 | 8 | — | — | — |
-| `CRS326-24G-2S+RM` | 24 | 2 | — | — | — |
-| `CRS520-4XS-16XQ-RM` | — | — | 4 | — | 16 |
-| `RB5009UG+S+IN` | 8 | 1 | — | — | — |
-
 ## Directory Structure
 
 ```console
 eveng-mikrotik/
+├── build-mikrotik-json.sh      # Generate per-model JSON from MikroTik model name
 ├── build-mikrotik-qemu.sh      # Main download + template-generation script
 ├── patch-qcow2.sh              # QEMU boot + RSC generation + apply config + shutdown
 ├── patch-qcow2.exp             # Expect script for serial console automation
@@ -86,7 +58,40 @@ Options:
 - `--log` — write build output to `/tmp/build-mikrotik-qemu-YYYYMMDD-HHMMSS.log`
 - `--help` — show usage
 
-### 2. Patch qcow2 Image (apply RouterOS config)
+### 2. Optional: Generate per-model JSON (from MikroTik model name)
+
+This step is **not required** if you already have `templates/<model>.json` files for the models you need, but it offers an easy starting point when adding support for a new model.
+
+Due to character limitations of stored templates in Eve-NG, it can be difficult to differentiate between the various CCR2004 models and possibly other models as well. This script exists to make it easy to convert a MikroTik model name into a JSON file. Use it at your own risk — results may vary depending on whether or when MikroTik updates their naming schemes.
+
+```bash
+./build-mikrotik-json.sh CRS510-8XS-2XQ
+./build-mikrotik-json.sh CRS326-24G-2S+IN
+./build-mikrotik-json.sh CRS2004-1G-12S+2XS
+```
+
+Arguments:
+
+- `MODEL` — MikroTik model name with port specification (e.g. `CRS510-8XS-2XQ`, `CRS510-8XS-2XQ-IN`, `CRS326-24G-2S+IN`, `CRS2004-1G-12S+2XS`)
+
+Port spec abbreviations recognized:
+
+| Abbrev | RouterOS Root | Notes |
+| -------- | -------------- | ----- |
+| `xs` | `sfp28` | SFP28, 25 Gbps |
+| `xq` | `qsfp28` | QSFP28, 100 Gbps; lane 1 used only |
+| `s` / `s+` | `sfp-sfpplus` | SFP/SFP+, 1 / 10 Gbps |
+| `q` / `q+` | `qsfp28` / `qsfpplus` | 100 / 40 Gbps; lane 1 used only |
+| `gf` / `g` / `g+` | `ether` | 1 Gbps copper |
+| `c` / `c+` | `combo` | Combo port |
+| `p` / `p+` / `xg` / `xp` / `fi` / `fr` / `fp` / `f` | `ether` | Copper ethernet variants |
+
+Output: `templates/MODEL_BASE.json` (e.g., `templates/crs510.json`)
+These JSON files are referenced by `build-mikrotik-qemu.sh` during template generation.
+
+Variant suffixes (`-IN`, `-RM`, `-OUT`) are stripped automatically before processing.
+
+### 3. Patch qcow2 Image (apply RouterOS config)
 
 ```bash
 ./patch-qcow2.sh /path/to/mikrotik-crs309-7.23.1/hda.qcow2 --verbose
