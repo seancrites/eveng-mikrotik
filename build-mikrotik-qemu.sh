@@ -301,7 +301,7 @@ setup_paths() {
    HTML_BASE="/opt/unetlab/html"
    INCLUDES_DIR="${HTML_BASE}/includes"
    QEMU_BASE="/opt/unetlab/addons/qemu"
-   TEMPLATES_BASE="${HTML_BASE}/${TPL_SUBDIR}_templates"
+   TEMPLATES_BASE="${HTML_BASE}/tempplates/${TPL_SUBDIR}"
    CUSTOM_YML="${INCLUDES_DIR}/custom_templates.yml"
 }
 
