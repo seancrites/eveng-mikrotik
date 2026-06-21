@@ -15,13 +15,16 @@
 #   - Source .rsc templates from the templates/ directory
 #
 # USAGE:
-#   ./patch-qcow2.exp MODEL SERIAL_PORT MONITOR_PORT RSC_FILE
+#   ./patch-qcow2.exp MODEL SERIAL_PORT MONITOR_PORT RSC_FILE [--verbose] [--debug]
 #
 # Arguments:
 #   MODEL        Model name (e.g. crs309)
 #   SERIAL_PORT  Telnet serial port number
 #   MONITOR_PORT Telnet monitor port number
 #   RSC_FILE     Path to generated per-model .rsc file
+# Options:
+#   --verbose    Show detailed expect progress
+#   --debug      Enable debug output and internal expect logging
 #
 # EXAMPLE:
 #   ./patch-qcow2.exp crs309 6001 6000 /tmp/crs309.rsc
@@ -32,13 +35,35 @@ set model        [lindex $argv 0]
 set serial_port  [lindex $argv 1]
 set monitor_port [lindex $argv 2]
 set rsc_model_file [lindex $argv 3]
+exp_internal 0
+log_user 0
+
+set verbose 0
+set debug 0
+set argc [llength $argv]
+if {$argc > 4} {
+    set extra_args [lrange $argv 4 end]
+    foreach opt $extra_args {
+        switch -- $opt {
+            --verbose { set verbose 1 }
+            --debug { set debug 1 }
+            default {
+                puts stderr "Unknown option: $opt"
+                exit 1
+            }
+        }
+    }
+}
 
 set rsc_global_file "templates/global-custom.rsc"
 set rsc_custom_file "templates/${model}-custom.rsc"
 
-exp_internal 0
-# log_file /tmp/chr-debug.log
-log_user 0
+if {$verbose || $debug} {
+    log_user 1
+}
+if {$debug} {
+    exp_internal 1
+}
 
 spawn telnet 127.0.0.1 $serial_port
 
@@ -61,6 +86,8 @@ expect {
 expect {
    "Password:" {
       send_user "\n=== Password prompt ===\n"
+      send_user "=== Be patient - CHR is booting ===\n"
+      send_user "=== This can take 30 seconds ===\n"
       send "\r"
    }
 }

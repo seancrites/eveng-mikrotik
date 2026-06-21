@@ -22,6 +22,7 @@
 #   --serial-port  N    Serial console port (default: 6001)
 #   --rnd-prefix   S    4-char random prefix for temp files (default: none)
 #   --verbose           Show detailed progress
+#   --debug             Enable debug output from the expect script
 #
 # EXAMPLE:
 #   ./patch-qcow2.sh /opt/unetlab/addons/qemu/mikrotik-crs309-7.22.1/hda.qcow2 --verbose
@@ -104,7 +105,7 @@ MAIN() {
    check_dependencies
 
    if [ $# -lt 1 ]; then
-      echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--verbose]"
+      echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--verbose] [--debug]"
       exit 1
    fi
 
@@ -122,7 +123,9 @@ MAIN() {
    MONITOR_PORT=6000
    SERIAL_PORT=6001
    VERBOSE=false
+   DEBUG=false
    RND_PREFIX=""
+   EXPECT_ARGS=()
 
    while [ $# -gt 1 ]; do
       case "${2:-}" in
@@ -140,11 +143,17 @@ MAIN() {
             ;;
          --verbose)
             VERBOSE=true
+            EXPECT_ARGS+=(--verbose)
+            shift
+            ;;
+         --debug)
+            DEBUG=true
+            EXPECT_ARGS+=(--debug)
             shift
             ;;
          *)
             echo "Unknown option: ${2:-}"
-            echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--verbose]"
+            echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--verbose] [--debug]"
             exit 1
             ;;
       esac
@@ -199,9 +208,9 @@ MAIN() {
    fi
 
    log "Serial port ready. Running expect script..."
-   [ "$VERBOSE" = true ] && log "  Command: expect $(dirname "$0")/patch-qcow2.exp $MODEL $SERIAL_PORT $MONITOR_PORT $RSC_GENERATED"
+   [ "$VERBOSE" = true ] && log "  Command: expect $(dirname "$0")/patch-qcow2.exp $MODEL $SERIAL_PORT $MONITOR_PORT $RSC_GENERATED ${EXPECT_ARGS[*]}"
 
-   expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED"
+   expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED" "${EXPECT_ARGS[@]}"
    EXPECT_EXIT=$?
 
    # Poll for QEMU process to exit (every 2s up to ~60s)
