@@ -285,8 +285,6 @@ generate_json() {
    # If the JSON file already exists, show Current/New summaries and
    # prompt before overwriting.
    if [ -f "$MODEL_JSON" ]; then
-      local old_count
-      old_count="$(jq '.ether_ports' "$MODEL_JSON")"
 
       # Build interface type summary for the existing file
       local existing_summary=""
