@@ -341,7 +341,7 @@ create_qemu_directory() {
 
    if [ -d "$QEMU_DIR" ] && [ "$FORCE" = false ]; then
       echo "Warning: Directory $QEMU_DIR already exists."
-      read -p "Overwrite existing files? (y/N): " confirm
+      read -rp "Overwrite existing files? (y/N): " confirm
       if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
          echo "Aborted."
          exit 0
@@ -435,7 +435,7 @@ generate_template() {
          echo "Warning: Template file $TPL_OUT already exists and differs from the new version."
          echo "Differences:"
          diff -u "$TPL_OUT" "$TMP_MERGED"
-         read -p "Overwrite with the new version? (y/N): " confirm
+         read -rp "Overwrite with the new version? (y/N): " confirm
          if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
             echo "Aborted."
             exit 0
