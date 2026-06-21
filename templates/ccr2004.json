@@ -1,22 +1,25 @@
 {
-   "name": "ccr2004",
-   "description": "MikroTik CCR2004",
-   "num_cpu": 1,
-   "ram": 256,
-   "ether_names": [
-      "sfp-sfpplus1",
-      "sfp-sfpplus2",
-      "sfp-sfpplus3",
-      "sfp-sfpplus4",
-      "sfp-sfpplus5",
-      "sfp-sfpplus6",
-      "sfp-sfpplus7",
-      "sfp-sfpplus8",
-      "sfp-sfpplus9",
-      "sfp-sfpplus10",
-      "sfp-sfpplus11",
-      "sfp-sfpplus12",
-      "sfp28-1",
-      "sfp28-2"
-   ]
+  "name": "ccr2004",
+  "model": "CCR2004-1G-12S+2XS",
+  "description": "MikroTik CCR2004",
+  "num_cpu": 1,
+  "ram": 256,
+  "ether_ports": 15,
+  "ether_names": [
+    "ether1",
+    "sfp28-1",
+    "sfp28-2",
+    "sfp-sfpplus1",
+    "sfp-sfpplus2",
+    "sfp-sfpplus3",
+    "sfp-sfpplus4",
+    "sfp-sfpplus5",
+    "sfp-sfpplus6",
+    "sfp-sfpplus7",
+    "sfp-sfpplus8",
+    "sfp-sfpplus9",
+    "sfp-sfpplus10",
+    "sfp-sfpplus11",
+    "sfp-sfpplus12"
+  ]
 }

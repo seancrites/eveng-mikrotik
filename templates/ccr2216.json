@@ -1,22 +1,25 @@
 {
-   "name": "ccr2216",
-   "description": "MikroTik CCR2216",
-   "num_cpu": 1,
-   "ram": 256,
-   "ether_names": [
-      "qsfpplus1-1",
-      "qsfpplus2-1",
-      "sfp28-1",
-      "sfp28-2",
-      "sfp28-3",
-      "sfp28-4",
-      "sfp28-5",
-      "sfp28-6",
-      "sfp28-7",
-      "sfp28-8",
-      "sfp28-9",
-      "sfp28-10",
-      "sfp28-11",
-      "sfp28-12"
-   ]
+  "name": "ccr2216",
+  "model": "CCR2216-1G-12XS-2XQ",
+  "description": "MikroTik CCR2216",
+  "num_cpu": 1,
+  "ram": 256,
+  "ether_ports": 15,
+  "ether_names": [
+    "ether1",
+    "qsfp28-1-1",
+    "qsfp28-2-1",
+    "sfp28-1",
+    "sfp28-2",
+    "sfp28-3",
+    "sfp28-4",
+    "sfp28-5",
+    "sfp28-6",
+    "sfp28-7",
+    "sfp28-8",
+    "sfp28-9",
+    "sfp28-10",
+    "sfp28-11",
+    "sfp28-12"
+  ]
 }
