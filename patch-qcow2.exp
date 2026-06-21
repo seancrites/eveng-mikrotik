@@ -36,9 +36,9 @@ set rsc_model_file [lindex $argv 3]
 set rsc_global_file "templates/global-custom.rsc"
 set rsc_custom_file "templates/${model}-custom.rsc"
 
-exp_internal 1
-log_file /tmp/chr-debug.log
-log_user 1
+exp_internal 0
+# log_file /tmp/chr-debug.log
+log_user 0
 
 spawn telnet 127.0.0.1 $serial_port
 
