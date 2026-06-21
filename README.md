@@ -84,6 +84,8 @@ Options:
 
 - `--verbose` — show detailed step-by-step output
 - `--force` — overwrite existing file/directory without prompting
+- `--debug` — preserve generated `/tmp` debug files with a shared random prefix
+- `--log` — write build output to `/tmp/build-mikrotik-qemu-YYYYMMDD-HHMMSS.log`
 - `--help` — show usage
 
 ### 2. Patch qcow2 Image (apply RouterOS config)
@@ -104,7 +106,7 @@ Options:
 
 ## How Patch Works
 
-1. **RSC Generation** — `patch-qcow2.sh` reads `templates/<model>.json` and `templates/mikrotik-template.rsc`, expands the `@@ETHER_PORTS@@`, `@@ETHER_NAMES_RENAME@@`, and `@@NAME@@` placeholders, and writes the result to `/tmp/<model>.rsc`. Ethernet port count is derived from the `ether_names` array in the JSON.
+1. **RSC Generation** — `patch-qcow2.sh` reads `templates/<model>.json` and `templates/mikrotik-template.rsc`, expands the `@@ETHER_PORTS@@`, `@@ETHER_NAMES_RENAME@@`, and `@@NAME@@` placeholders, and writes the result to `/tmp/<model>.rsc`. When `--debug` is enabled in `build-mikrotik-qemu.sh`, debug artifacts are preserved with a shared random prefix under `/tmp/`. Ethernet port count is derived from the `ether_names` array in the JSON.
 2. **QEMU Launch** — starts `qemu-system-x86_64` in the background with telnet-backed monitor/serial on configurable ports.
 3. **Readiness Poll** — polls serial port every 2s up to 15s until QEMU accepts connections.
 4. **Expect Script** — `patch-qcow2.exp` connects via telnet to the serial console and:
@@ -144,7 +146,7 @@ The file `templates/mikrotik-template.rsc` is a RouterOS script containing three
 - `@@ETHER_NAMES_RENAME@@` — replaced with `set [find default-name=etherN] disable-running-check=no name=<name>` lines, one per entry in `ether_names`, in array order
 - `@@NAME@@` — replaced with the uppercase model name (e.g. `ccr2004` → `CCR2004`)
 
-The generated RSC is written to `/tmp/<model>.rsc` and is ephemeral. It is kept for debugging purposes.
+The generated RSC is written to `/tmp/<model>.rsc` and is ephemeral. It is kept for debugging purposes. If you run `build-mikrotik-qemu.sh` with `--debug`, the generated `/tmp` artifacts are preserved with a shared random prefix so you can inspect the generated template, RSC file, and debug summary.
 
 ## Customization
 
