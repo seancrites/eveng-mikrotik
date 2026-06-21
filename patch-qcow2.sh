@@ -207,7 +207,7 @@ MAIN() {
       exit 1
    fi
 
-   log "Serial port ready. Running expect script..."
+   log "Serial port ready. Running expect script...(Can take ~30s to complete)"
    [ "$VERBOSE" = true ] && log "  Command: expect $(dirname "$0")/patch-qcow2.exp $MODEL $SERIAL_PORT $MONITOR_PORT $RSC_GENERATED ${EXPECT_ARGS[*]}"
 
    EXPECT_OUT="/tmp/${RND_PREFIX:+${RND_PREFIX}-}${MODEL}-expect-output.txt"
