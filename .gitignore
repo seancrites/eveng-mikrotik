@@ -1,6 +1,7 @@
 # Custom user RSC overrides (not tracked by default)
 templates/global-custom.rsc
 templates/*-custom.rsc
+cache/*
 
 # Build artifacts
 dev*
