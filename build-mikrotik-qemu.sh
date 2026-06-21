@@ -157,7 +157,11 @@ setup_log_file() {
    if [ "$LOG" = true ]; then
       local timestamp
       timestamp="$(date '+%Y%m%d-%H%M%S')"
-      LOG_FILE="/tmp/build-mikrotik-qemu-${timestamp}.log"
+      if [ "$DEBUG" = true ] && [ -n "$DEBUG_PREFIX" ]; then
+         LOG_FILE="/tmp/${DEBUG_PREFIX}-build-mikrotik-qemu-${timestamp}.log"
+      else
+         LOG_FILE="/tmp/build-mikrotik-qemu-${timestamp}.log"
+      fi
       exec > >(tee -a "$LOG_FILE") 2>&1
       echo "Logging output to $LOG_FILE"
    fi
