@@ -238,10 +238,12 @@ update_patch_cmds_in_info() {
    local patch_sh_cmd
    patch_sh_cmd="$(dirname "$0")/patch-qcow2.sh ${QEMU_DIR}/hda.qcow2 --monitor-port ${MONITOR_PORT} --serial-port ${SERIAL_PORT}"
    [ "$VERBOSE" = true ] && patch_sh_cmd="$patch_sh_cmd --verbose"
-   [ "$DEBUG" = true ] && patch_sh_cmd="$patch_sh_cmd --rnd-prefix ${DEBUG_PREFIX}"
+   [ "$DEBUG" = true ] && patch_sh_cmd="$patch_sh_cmd --debug --rnd-prefix ${DEBUG_PREFIX}"
 
    local patch_exp_cmd
    patch_exp_cmd="$(dirname "$0")/patch-qcow2.exp ${MODEL} ${SERIAL_PORT} ${MONITOR_PORT} /tmp/${DEBUG_PREFIX:+${DEBUG_PREFIX}-}${MODEL}.rsc"
+   [ "$VERBOSE" = true ] && patch_exp_cmd="$patch_exp_cmd --verbose"
+   [ "$DEBUG" = true ] && patch_exp_cmd="$patch_exp_cmd --debug"
 
    sed -i "s|@@PATCH_QCOW2_SH_CMD@@|${patch_sh_cmd}|g" "$INFO_DEBUG_FILE"
    sed -i "s|@@PATCH_QCOW2_EXP_CMD@@|${patch_exp_cmd}|g" "$INFO_DEBUG_FILE"
@@ -488,7 +490,7 @@ run_patch() {
    local PATCH_ARGS=""
    PATCH_ARGS="--monitor-port ${MONITOR_PORT} --serial-port ${SERIAL_PORT}"
    [ "$VERBOSE" = true ] && PATCH_ARGS="$PATCH_ARGS --verbose"
-   [ "$DEBUG" = true ] && PATCH_ARGS="$PATCH_ARGS --rnd-prefix ${DEBUG_PREFIX}"
+   [ "$DEBUG" = true ] && PATCH_ARGS="$PATCH_ARGS --debug --rnd-prefix ${DEBUG_PREFIX}"
 
    echo ""
    echo "=== Starting QEMU image patching ($MODEL) ==="
@@ -525,10 +527,16 @@ print_summary() {
       echo "Log file: $LOG_FILE"
    fi
    if [ "$DEBUG" = true ]; then
-      echo "Debug files preserved under /tmp with prefix '$DEBUG_PREFIX-'."
-      if [ -n "$INFO_DEBUG_FILE" ]; then
-         echo "Debug summary: $INFO_DEBUG_FILE"
+      local debug_glob="/tmp/${DEBUG_PREFIX:+${DEBUG_PREFIX}-}*"
+      if ls -1 $debug_glob >/dev/null 2>&1; then
+         echo "Debug files preserved under /tmp with prefix '$DEBUG_PREFIX-':"
+         ls -1 $debug_glob
+      else
+         echo "No preserved debug files found under /tmp matching prefix '$DEBUG_PREFIX-'."
       fi
+      # if [ -n "$INFO_DEBUG_FILE" ]; then
+      #    echo "Debug summary: $INFO_DEBUG_FILE"
+      # fi
    fi
 }
 
