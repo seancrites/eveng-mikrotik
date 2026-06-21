@@ -21,7 +21,6 @@
 #   --monitor-port N    QEMU monitor port (default: 6000)
 #   --serial-port  N    Serial console port (default: 6001)
 #   --rnd-prefix   S    4-char random prefix for temp files (default: none)
-#   --dev               Dev mode - keep temp files
 #   --verbose           Show detailed progress
 #
 # EXAMPLE:
@@ -105,7 +104,7 @@ MAIN() {
    check_dependencies
 
    if [ $# -lt 1 ]; then
-      echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--dev] [--verbose]"
+      echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--verbose]"
       exit 1
    fi
 
@@ -123,7 +122,6 @@ MAIN() {
    MONITOR_PORT=6000
    SERIAL_PORT=6001
    VERBOSE=false
-   DEV_MODE=false
    RND_PREFIX=""
 
    while [ $# -gt 1 ]; do
@@ -140,17 +138,13 @@ MAIN() {
             RND_PREFIX="${3:?--rnd-prefix requires a value}"
             shift 2
             ;;
-         --dev)
-            DEV_MODE=true
-            shift
-            ;;
          --verbose)
             VERBOSE=true
             shift
             ;;
          *)
             echo "Unknown option: ${2:-}"
-            echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--dev] [--verbose]"
+            echo "Usage: $0 <hda.qcow2 path> [--monitor-port N] [--serial-port N] [--rnd-prefix S] [--verbose]"
             exit 1
             ;;
       esac
