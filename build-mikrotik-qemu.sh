@@ -168,7 +168,7 @@ setup_log_file() {
 # ---------------------------------------------------------------------------
 generate_debug_prefix() {
    if [ "$DEBUG" = true ]; then
-      DEBUG_PREFIX="$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 4)"
+      DEBUG_PREFIX="$(tr -dc 'a-z0-9' < /dev/urandom | head -c 4)"
       if [ "$VERBOSE" = true ]; then
          echo "Debug prefix: $DEBUG_PREFIX"
       fi
