@@ -1,0 +1,20 @@
+{
+  "name": "crs510",
+  "model": "CRS510-8XS-2XQ-IN",
+  "description": "MikroTik CRS510",
+  "num_cpu": 1,
+  "ram": 256,
+  "ether_ports": 10,
+  "ether_names": [
+    "qsfp28-1-1",
+    "qsfp28-2-1",
+    "sfp28-1",
+    "sfp28-2",
+    "sfp28-3",
+    "sfp28-4",
+    "sfp28-5",
+    "sfp28-6",
+    "sfp28-7",
+    "sfp28-8"
+  ]
+}

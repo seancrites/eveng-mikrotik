@@ -1,8 +1,10 @@
 {
    "name": "crs520",
+   "model": "CRS520-4XS-16XQ-RM",
    "description": "MikroTik CRS520",
    "num_cpu": 1,
    "ram": 256,
+   "ether_ports": 20,
    "ether_names": [
       "qsfp28-1-1",
       "qsfp28-2-1",

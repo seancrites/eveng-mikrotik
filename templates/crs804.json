@@ -1,0 +1,16 @@
+{
+   "name": "crs804",
+   "model": "CRS804-4DDQ-hRM",
+   "description": "MikroTik CRS804",
+   "num_cpu": 1,
+   "ram": 256,
+   "ether_ports": 6,
+   "ether_names": [
+      "ether1",
+      "ether2",
+      "qsfp56-1-1",
+      "qsfp56-2-1",
+      "qsfp56-3-1",
+      "qsfp56-4-1"
+   ]
+}

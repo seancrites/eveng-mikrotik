@@ -1,0 +1,15 @@
+{
+  "name": "crs305",
+  "model": "CRS305-1G-4S+IN",
+  "description": "MikroTik CRS305",
+  "num_cpu": 1,
+  "ram": 256,
+  "ether_ports": 5,
+  "ether_names": [
+    "ether1",
+    "sfp-sfpplus1",
+    "sfp-sfpplus2",
+    "sfp-sfpplus3",
+    "sfp-sfpplus4"
+  ]
+}
