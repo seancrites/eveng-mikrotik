@@ -291,9 +291,27 @@ detect_architecture() {
       TPL_SUBDIR="intel"
    fi
 
+   QEMU_OPTIONS=$(get_qemu_options "$TPL_SUBDIR")
+
    if [ "$VERBOSE" = true ]; then
       echo "Detected architecture: $TPL_SUBDIR"
    fi
+}
+
+# ---------------------------------------------------------------------------
+# get_qemu_options - Return architecture-specific QEMU options string
+#                   (single lookup point for future CPU-specific changes)
+# ---------------------------------------------------------------------------
+get_qemu_options() {
+   local arch="$1"
+   case "$arch" in
+      amd)
+         echo "-machine type=pc,accel=kvm -serial mon:stdio -nographic -no-user-config -nodefaults -display none -vga std -rtc base=utc"
+         ;;
+      intel|*)
+         echo "-machine type=pc,accel=kvm -serial mon:stdio -nographic -no-user-config -nodefaults -display none -vga std -rtc base=utc"
+         ;;
+   esac
 }
 
 # ---------------------------------------------------------------------------
@@ -489,11 +507,32 @@ download_image() {
 }
 
 # ---------------------------------------------------------------------------
+# get_icon - Return icon filename based on MikroTik model prefix
+#           CCR = Router, CRS = Switch, default = Router
+# ---------------------------------------------------------------------------
+get_icon() {
+   local model="$1"
+   case "$model" in
+      ccr*)
+         echo "Router-2D-Gen-White-S.svg"
+         ;;
+      crs*)
+         echo "Switch-2D-HUB-White-S.svg"
+         ;;
+      *)
+         echo "Router-2D-Gen-White-S.svg"
+         ;;
+   esac
+}
+
+# ---------------------------------------------------------------------------
 # generate_template - Substitute placeholders, write template with smart diff
 # ---------------------------------------------------------------------------
 generate_template() {
-   local TEMPLATE_SRC="templates/mikrotik-template-${TPL_SUBDIR}.yml"
+   local TEMPLATE_SRC="templates/mikrotik-template.yml"
    local TPL_OUT="${TEMPLATES_BASE}/${DIR_PREFIX}.yml"
+   local ICON
+   ICON=$(get_icon "$MODEL")
    local TMP_MERGED="/tmp/merged_${DIR_PREFIX}.yml"
    local ETH_LIST_TMP="/tmp/eth_list.txt"
 
@@ -507,12 +546,16 @@ generate_template() {
        -v prefix="$DIR_PREFIX" \
        -v cpu="$NUM_CPU" \
        -v ram="$RAM" \
-       -v ethp="$ETHER_PORTS" '
+       -v ethp="$ETHER_PORTS" \
+       -v icon="$ICON" \
+       -v qemu_opt="$QEMU_OPTIONS" '
        /@@DESCRIPTION@@/ { gsub(/@@DESCRIPTION@@/, desc); print; next }
        /@@DIR-PREFIX@@/ { gsub(/@@DIR-PREFIX@@/, prefix); print; next }
        /@@NUM_CPU@@/ { gsub(/@@NUM_CPU@@/, cpu); print; next }
        /@@RAM@@/ { gsub(/@@RAM@@/, ram); print; next }
        /@@ETHER_PORTS@@/ { gsub(/@@ETHER_PORTS@@/, ethp); print; next }
+       /@@ICON@@/ { gsub(/@@ICON@@/, icon); print; next }
+       /@@QEMU_OPTIONS@@/ { gsub(/@@QEMU_OPTIONS@@/, qemu_opt); print; next }
        /@@INTERFACE_LIST@@/ {
            while ((getline line < "'"$ETH_LIST_TMP"'") > 0) print line
            close("'"$ETH_LIST_TMP"'")
