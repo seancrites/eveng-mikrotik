@@ -336,9 +336,19 @@ load_model_config() {
 }
 
 # ---------------------------------------------------------------------------
-# create_qemu_directory - Create the model/version QEMU directory
+# create_qemu_directory - Create the model/version QEMU directory with prompt
 # ---------------------------------------------------------------------------
 create_qemu_directory() {
+   QEMU_DIR="${QEMU_BASE}/mikrotik-${MODEL}-${VERSION}"
+
+   if [ -d "$QEMU_DIR" ] && [ "$FORCE" = false ]; then
+      echo "Warning: Directory $QEMU_DIR already exists."
+      read -rp "Overwrite existing files? (y/N): " confirm
+      if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+         echo "Aborted."
+         exit 0
+      fi
+   fi
    mkdir -p "$QEMU_DIR"
 
    if [ "$VERBOSE" = true ]; then
@@ -356,6 +366,13 @@ download_image() {
    local URL="https://download.mikrotik.com/routeros/${VERSION}/chr-${VERSION}.img.zip"
    local SHA_URL="${URL}.sha256"
    local TMP_ZIP="/tmp/chr-${VERSION}.img.zip"
+
+   # If download or checksum fails after the QEMU dir was created, clean it
+   # up so the user isn't left with a leftover directory that triggers an
+   # overwrite prompt on retry.
+   local _download_failed=false
+   cleanup_on_error() { _download_failed=true; }
+   trap cleanup_on_error EXIT
 
    # If cached zip already exists and checksum is valid, skip download
    if [ -f "$CACHED_ZIP" ]; then
@@ -462,6 +479,9 @@ download_image() {
 
    mkdir -p "$QEMU_DIR"
    mv "/tmp/$IMG_NAME" "${QEMU_DIR}/hda.qcow2"
+
+   # Success: clear the error trap so cleanup doesn't fire
+   trap - EXIT
 
    if [ "$VERBOSE" = true ]; then
       echo "Image placed as ${QEMU_DIR}/hda.qcow2"
@@ -658,8 +678,8 @@ main() {
    setup_paths
    load_model_config
    mkdir -p "$CACHE_DIR"
-   download_image
    create_qemu_directory
+   download_image
    resolve_ports
    if [ "$DEBUG" = true ]; then
       expand_debug_info
