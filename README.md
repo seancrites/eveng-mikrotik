@@ -70,10 +70,6 @@ Due to character limitations of stored templates in Eve-NG, it can be difficult 
 ./build-mikrotik-json.sh CRS2004-1G-12S+2XS
 ```
 
-Arguments:
-
-- `MODEL` — MikroTik model name with port specification (e.g. `CRS510-8XS-2XQ`, `CRS510-8XS-2XQ-IN`, `CRS326-24G-2S+IN`, `CRS2004-1G-12S+2XS`)
-
 Port spec abbreviations recognized:
 
 | Abbrev | RouterOS Root | Notes |
@@ -93,6 +89,8 @@ Variant suffixes (`-IN`, `-RM`, `-OUT`) are stripped automatically before proces
 
 ### 3. Patch qcow2 Image (apply RouterOS config)
 
+This step is not necessary, `build-mikrotik-qemu.sh` already handles this process. If you want to update the configuration of a CHR outside of the initial deployment process, this is for you. This script does not handle config deconfliction when running the same 'set' command a second time. CHR will give errors on the CLI but we won't check or report them.
+
 ```bash
 ./patch-qcow2.sh /path/to/mikrotik-crs309-7.23.1/hda.qcow2 --verbose
 ```
@@ -109,7 +107,7 @@ Options:
 
 ## RSC Customization
 
-The base RSC is generated on-the-fly from `templates/<model>.json`. Additional optional files are applied in layered order. Missing files are silently skipped.
+The base RSC (model specific interface names, setting hostname and removing the dhcp-client) is generated on-the-fly from `templates/<model>.json`. Additional optional files are applied in layered order. Missing files are silently skipped.
 
 | Priority | File | Scope | Source |
 | ---------- | ------ | ------- | -------- |
