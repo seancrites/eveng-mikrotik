@@ -303,7 +303,7 @@ setup_paths() {
    HTML_BASE="/opt/unetlab/html"
    INCLUDES_DIR="${HTML_BASE}/includes"
    QEMU_BASE="/opt/unetlab/addons/qemu"
-   TEMPLATES_BASE="${HTML_BASE}/tempplates/${TPL_SUBDIR}"
+   TEMPLATES_BASE="${HTML_BASE}/templates/${TPL_SUBDIR}"
    CUSTOM_YML="${INCLUDES_DIR}/custom_templates.yml"
    QEMU_DIR="${QEMU_BASE}/mikrotik-${MODEL}-${VERSION}"
 }
