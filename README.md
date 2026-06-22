@@ -33,11 +33,29 @@ eveng-mikrotik/
 
 ### Prerequisites
 
+As of Eve-NG v6.2.0-4, the only additional dependencies are `jq` and `expect`.
+
 Install required system packages:
 
 ```bash
 apt install qemu-system-x86 expect netcat curl jq unzip grep awk sed diffutils
 ```
+
+### Local Usage
+
+Clone this repository to `/usr/local/bin` so the scripts are on your system `PATH`:
+
+```bash
+sudo git clone https://github.com/seancrites/eveng-mikrotik.git /usr/local/bin/eveng-mikrotik
+```
+
+Then navigate into the directory:
+
+```bash
+cd /usr/local/bin/eveng-mikrotik
+```
+
+Make the scripts executable if needed, then proceed to the steps below.
 
 ### 1. Create Eve-NG Template (download CHR + generate YAML)
 
