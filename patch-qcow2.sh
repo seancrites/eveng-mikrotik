@@ -211,8 +211,13 @@ MAIN() {
    [ "$VERBOSE" = true ] && log "  Command: expect $(dirname "$0")/patch-qcow2.exp $MODEL $SERIAL_PORT $MONITOR_PORT $RSC_GENERATED ${EXPECT_ARGS[*]}"
 
    EXPECT_OUT="/tmp/${RND_PREFIX:+${RND_PREFIX}-}${MODEL}-expect-output.txt"
-   expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED" "${EXPECT_ARGS[@]}" > "$EXPECT_OUT" 2>&1
-   EXPECT_EXIT=$?
+   if [ "$VERBOSE" = true ]; then
+      expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED" "${EXPECT_ARGS[@]}" 2>&1 | tee "$EXPECT_OUT"
+      EXPECT_EXIT=${PIPESTATUS[0]}
+   else
+      expect "$(dirname "$0")/patch-qcow2.exp" "$MODEL" "$SERIAL_PORT" "$MONITOR_PORT" "$RSC_GENERATED" "${EXPECT_ARGS[@]}" > "$EXPECT_OUT" 2>&1
+      EXPECT_EXIT=$?
+   fi
 
    # Poll for QEMU process to exit (every 2s up to ~60s)
    QEMU_GONE=false
