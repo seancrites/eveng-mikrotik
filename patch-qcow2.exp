@@ -186,7 +186,7 @@ apply_rsc_file $rsc_custom_file
 # Shutdown guest
 set timeout 15
 expect ">"
-send "system shutdown\r"
+send "/system shutdown\r"
 expect {
     -exact {Shutdown, yes? [y/N]: } {
         send "y\r"
