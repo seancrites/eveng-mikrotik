@@ -735,6 +735,7 @@ main() {
    fi
    print_summary
    cleanup_temp_files
+   /opt/unetlab/wrappers/unl_wrapper -a fixpermissions
 }
 
 main "$@"
