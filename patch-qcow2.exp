@@ -55,6 +55,8 @@ if {$argc > 4} {
     }
 }
 
+set send_slow {1 .05}
+
 set rsc_global_file "templates/global-custom.rsc"
 set rsc_custom_file "templates/${model}-custom.rsc"
 
@@ -136,15 +138,24 @@ proc apply_rsc_file {rsc_file} {
 
     puts "\n=== Applying RSC: $rsc_file ==="
 
+   #  set fd [open $rsc_file r]
+   #  set rsc_content [read $fd]
+   #  close $fd
+   #  set rsc_content [string trimright $rsc_content]
+   #  send_user "  -> Pasting entire RSC file...\n"
+   #  send -h "$rsc_content\r"
+
     set fd [open $rsc_file r]
-    set rsc_content [read $fd]
+    set lines [split [read $fd] "\n"]
     close $fd
 
-    set rsc_content [string trimright $rsc_content]
-
-    send_user "  -> Pasting entire RSC file...\n"
-
-    send "$rsc_content\r"
+    foreach line $lines {
+        set line [string trimright $line]
+        if {$line ne ""} {
+            send "$line\r"
+            sleep 0.1          ;# Small delay between lines
+        }
+    }
 
     # Wait for prompt after paste
     set timeout 15
