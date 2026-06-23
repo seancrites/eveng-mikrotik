@@ -58,10 +58,8 @@ sanitize_name() {
 # Returns the path to the generated RSC file.
 generate_rsc() {
    local model_raw="$1"
-   local model_sanitized
-   model_sanitized="$(sanitize_name "$model_raw")"
    local model
-   model="$(echo "$model_sanitized" | tr '[:upper:]' '[:lower:]')"
+   model="$(sanitize_name "$model_raw")"
    local rnd_prefix="$2"
    local json_file="templates/${model}.json"
    local template_file="templates/mikrotik-template.rsc"
