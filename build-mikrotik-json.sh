@@ -91,15 +91,17 @@ abbr_to_root() {
 # parse_model - Convert input model name into base name and port segments
 # ---------------------------------------------------------------------------
 parse_model() {
-   local input_lower
-   input_lower="$(printf '%s' "$MODEL_INPUT" | tr '[:upper:]' '[:lower:]')"
+   # Case-preserved version for the filename/name
+   local input_case="$MODEL_INPUT"
 
-   # Base model is the full model name with variant suffixes stripped.
-   # Variant suffixes (-RM, -IN, -OUT, -PC) indicate physical mounting or
-   # packaging only and do not affect network performance or usage.
-   # The suffix may be preceded by a dash or directly adjacent to a port code
-   # (e.g., "2S+RM" or "2S+-RM" both have the suffix stripped).
-   MODEL_BASE="$(printf '%s' "$input_lower" | sed -E 's/-?(in|rm|out|pc)$//')"
+   # Base model: strip physical mounting suffixes, preserving case
+   # Suffixes (-RM, -IN, -OUT, -PC) don't affect ports
+   # Also handle suffixes directly adjacent (e.g., "2S+RM" → "2S+")
+   MODEL_BASE="$(printf '%s' "$input_case" | sed -E 's/-?(in|rm|out|pc)$//I')"
+
+   # Lowercased version for internal port parsing
+   local input_lower
+   input_lower="$(printf '%s' "$MODEL_BASE" | tr '[:upper:]' '[:lower:]')"
 
    if [ -z "$MODEL_BASE" ]; then
       echo "Error: Could not determine model base name from '$MODEL_INPUT'." >&2

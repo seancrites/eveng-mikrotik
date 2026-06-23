@@ -342,9 +342,7 @@ load_model_config() {
    # Use sanitized name for all filesystem paths (+ -> plus)
    local MODEL_SANITIZED
    MODEL_SANITIZED="$(sanitize_name "$MODEL")"
-   local MODEL_LC
-   MODEL_LC="${MODEL_SANITIZED,,}"
-   local JSON_FILE="templates/${MODEL_LC}.json"
+   local JSON_FILE="templates/${MODEL_SANITIZED}.json"
 
    if [ "$VERBOSE" = true ]; then
       echo "Loading model data from ${JSON_FILE}..."
@@ -557,9 +555,7 @@ generate_template() {
 
    local MODEL_SANITIZED
    MODEL_SANITIZED="$(sanitize_name "$MODEL")"
-   local MODEL_LC
-   MODEL_LC="${MODEL_SANITIZED,,}"
-   jq -r '.ether_names | map("  - " + .) | join("\n")' "templates/${MODEL_LC}.json" > "$ETH_LIST_TMP"
+   jq -r '.ether_names | map("  - " + .) | join("\n")' "templates/${MODEL_SANITIZED}.json" > "$ETH_LIST_TMP"
 
    awk -v desc="$DESCRIPTION" \
        -v prefix="$DIR_PREFIX" \
