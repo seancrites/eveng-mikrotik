@@ -27,16 +27,21 @@
 # WARNING:   This script is still in development. Use with caution and
 #            verify output before relying on it.
 #
-# Variant suffixes (-IN, -RM, -OUT) are stripped automatically. Only the
-# base model name is used for the output filename.
+# The full variant-identifying string is used for the output filename.
+# Physical-mounting suffixes (-RM, -IN, -OUT, -PC) are stripped automatically
+# since they do not affect network performance or port layout.
 #
 # EXAMPLE:
 #   ./build-mikrotik-json.sh crs510-8xs-2xq
 #   ./build-mikrotik-json.sh CRS326-24G-2S+IN
-#   ./build-mikrotik-json.sh ccr2004
+#   ./build-mikrotik-json.sh CCR2004-1G-12S+2XS
+#   ./build-mikrotik-json.sh CRS326-4C+20G+2Q+RM
 #
 # OUTPUT:
-#   templates/MODEL.json  (e.g., templates/crs510.json)
+#   templates/MODEL_BASE.json
+#   e.g.: templates/crs326-24s+2q+.json
+#         templates/ccr2004-1g-12s+2xs.json
+#         templates/crs510.json
 #
 
 # ---------------------------------------------------------------------------
@@ -79,8 +84,12 @@ parse_model() {
    local input_lower
    input_lower="$(printf '%s' "$MODEL_INPUT" | tr '[:upper:]' '[:lower:]')"
 
-   # Base model is the first dash-separated component
-   MODEL_BASE="$(printf '%s' "$input_lower" | cut -d'-' -f1)"
+   # Base model is the full model name with variant suffixes stripped.
+   # Variant suffixes (-RM, -IN, -OUT, -PC) indicate physical mounting or
+   # packaging only and do not affect network performance or usage.
+   # The suffix may be preceded by a dash or directly adjacent to a port code
+   # (e.g., "2S+RM" or "2S+-RM" both have the suffix stripped).
+   MODEL_BASE="$(printf '%s' "$input_lower" | sed -E 's/-?(in|rm|out|pc)$//')"
 
    if [ -z "$MODEL_BASE" ]; then
       echo "Error: Could not determine model base name from '$MODEL_INPUT'." >&2

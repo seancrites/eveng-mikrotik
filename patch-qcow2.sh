@@ -113,7 +113,7 @@ MAIN() {
 
    # Auto-detect model from path: expects .../mikrotik-<model>-<version>/hda.qcow2
    PARENT_DIR="$(basename "$(dirname "$QCOW2")")"
-   if [[ "$PARENT_DIR" =~ ^mikrotik-(.+)-[0-9] ]]; then
+   if [[ "$PARENT_DIR" =~ ^mikrotik-(.+)-([0-9]+\.[0-9]+(\.[0-9]+)?)$ ]]; then
       MODEL="${BASH_REMATCH[1]}"
    else
       echo "Error: Could not auto-detect model from path '$QCOW2'."
