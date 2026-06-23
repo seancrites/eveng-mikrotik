@@ -45,11 +45,23 @@ log() {
    echo "[$(date '+%H:%M:%S')] $1" >&2
 }
 
+# ---------------------------------------------------------------------------
+# sanitize_name - Replace characters that cause issues in EveNG filesystem names
+#                 Currently: '+' -> 'plus'
+# ---------------------------------------------------------------------------
+sanitize_name() {
+   local name="$1"
+   printf '%s' "$name" | sed 's/+/plus/g'
+}
+
 # Generate a per-model RSC file on the fly from the JSON definition and template.
 # Returns the path to the generated RSC file.
 generate_rsc() {
+   local model_raw="$1"
+   local model_sanitized
+   model_sanitized="$(sanitize_name "$model_raw")"
    local model
-   model="$(echo "$1" | tr '[:upper:]' '[:lower:]')"
+   model="$(echo "$model_sanitized" | tr '[:upper:]' '[:lower:]')"
    local rnd_prefix="$2"
    local json_file="templates/${model}.json"
    local template_file="templates/mikrotik-template.rsc"

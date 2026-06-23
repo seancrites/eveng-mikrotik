@@ -45,10 +45,20 @@
 #
 
 # ---------------------------------------------------------------------------
+# sanitize_name - Replace characters that cause issues in EveNG filesystem names
+#                 Currently: '+' -> 'plus'
+# ---------------------------------------------------------------------------
+sanitize_name() {
+   local name="$1"
+   printf '%s' "$name" | sed 's/+/plus/g'
+}
+
+# ---------------------------------------------------------------------------
 # Global variables - clear all at the top
 # ---------------------------------------------------------------------------
 MODEL_INPUT=""
 MODEL_BASE=""
+MODEL_SANITIZED=""
 MODEL_JSON=""
 INTERFACE_LIST=""
 INTERFACE_TYPE_SUMMARY=""
@@ -251,10 +261,11 @@ parse_model() {
 }
 
 # ---------------------------------------------------------------------------
-# generate_json - Write JSON with interface names to templates/MODEL_BASE.json
+# generate_json - Write JSON with interface names to templates/MODEL_SANITIZED.json
 # ---------------------------------------------------------------------------
 generate_json() {
-   MODEL_JSON="templates/${MODEL_BASE}.json"
+   MODEL_SANITIZED="$(sanitize_name "$MODEL_BASE")"
+   MODEL_JSON="templates/${MODEL_SANITIZED}.json"
 
    # Ensure destination directory exists
    mkdir -p "templates"
@@ -272,11 +283,14 @@ generate_json() {
    port_count="$(printf '%s' "$INTERFACE_LIST" | wc -w)"
 
    # Assemble JSON document
+   # name: sanitized (no +) for EveNG filesystem compatibility
+   # model: original input, case preserved
+   # description: original input for human-friendly UI display
    local new_json
    new_json="$(jq -n \
-      --arg name "$MODEL_BASE" \
+      --arg name "$MODEL_SANITIZED" \
       --arg model "$MODEL_INPUT" \
-      --arg description "MikroTik ${MODEL_BASE^^}" \
+      --arg description "MikroTik ${MODEL_INPUT}" \
       --argjson num_cpu 1 \
       --argjson ram 256 \
       --argjson ether_ports "$port_count" \
