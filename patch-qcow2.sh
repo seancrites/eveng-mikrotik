@@ -48,7 +48,8 @@ log() {
 # Generate a per-model RSC file on the fly from the JSON definition and template.
 # Returns the path to the generated RSC file.
 generate_rsc() {
-   local model="$1"
+   local model
+   model="$(echo "$1" | tr '[:upper:]' '[:lower:]')"
    local rnd_prefix="$2"
    local json_file="templates/${model}.json"
    local template_file="templates/mikrotik-template.rsc"

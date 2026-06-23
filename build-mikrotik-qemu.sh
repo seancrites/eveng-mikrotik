@@ -330,7 +330,9 @@ setup_paths() {
 # load_model_config - Validate model JSON exists and extract fields
 # ---------------------------------------------------------------------------
 load_model_config() {
-   local JSON_FILE="templates/${MODEL}.json"
+   local MODEL_LC
+   MODEL_LC="${MODEL,,}"
+   local JSON_FILE="templates/${MODEL_LC}.json"
 
    if [ "$VERBOSE" = true ]; then
       echo "Loading model data from ${JSON_FILE}..."
@@ -540,7 +542,9 @@ generate_template() {
       TMP_MERGED="/tmp/${DEBUG_PREFIX}-merged-${DIR_PREFIX}.yml"
    fi
 
-   jq -r '.ether_names | map("  - " + .) | join("\n")' "templates/${MODEL}.json" > "$ETH_LIST_TMP"
+   local MODEL_LC
+   MODEL_LC="${MODEL,,}"
+   jq -r '.ether_names | map("  - " + .) | join("\n")' "templates/${MODEL_LC}.json" > "$ETH_LIST_TMP"
 
    awk -v desc="$DESCRIPTION" \
        -v prefix="$DIR_PREFIX" \
