@@ -5,10 +5,12 @@
 # PURPOSE:   Boot a MikroTik CHR qcow2 image with QEMU, connect via serial
 #            console, apply per-model RouterOS configuration (interface
 #            renaming, identity, etc.), then cleanly shut down the guest.
+#
 # AUTHOR:    Sean Crites
 # VERSION:   1.0.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
+# GITHUB:    https://github.com/seancrites/even-mikrotik
 #
 # DEPENDENCIES:
 #   - qemu-system-x86_64, expect, nc, jq

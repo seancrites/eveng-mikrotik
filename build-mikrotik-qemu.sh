@@ -6,10 +6,12 @@
 #            generate an architecture-specific Eve-NG template for the
 #            specified model and version, and optionally patch the image
 #            with model-specific RouterOS configuration.
+#
 # AUTHOR:    Sean Crites
 # VERSION:   1.0.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
+# GITHUB:    https://github.com/seancrites/even-mikrotik
 #
 # DEPENDENCIES:
 #   - curl, jq, unzip, grep, awk, sed, mkdir, mv, diff, qemu-system-x86_64,
