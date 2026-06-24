@@ -21,7 +21,7 @@
 #
 # MODEL should be a MikroTik model name with port specifications, such as:
 #   crs510-8xs-2xq
-#   CRS326-24G-2S+IN
+#   crs326-24g-2s+
 #   crs305-1gf-16x
 #
 # WARNING:   This script is still in development. Use with caution and
@@ -33,15 +33,15 @@
 #
 # EXAMPLE:
 #   ./build-mikrotik-json.sh crs510-8xs-2xq
-#   ./build-mikrotik-json.sh CRS326-24G-2S+IN
-#   ./build-mikrotik-json.sh CCR2004-1G-12S+2XS
-#   ./build-mikrotik-json.sh CRS326-4C+20G+2Q+RM
+#   ./build-mikrotik-json.sh crs326-24g-2s+
+#   ./build-mikrotik-json.sh ccr2004-1g-12s+2xs
+#   ./build-mikrotik-json.sh crs326-4c+20g+2q+rm
 #
 # OUTPUT:
 #   templates/MODEL_BASE.json
-#   e.g.: templates/crs326-24s+2q+.json
-#         templates/ccr2004-1g-12s+2xs.json
-#         templates/crs510.json
+#   e.g.: templates/crs326-24splus2qplus.json
+#         templates/ccr2004-1g-12splus2xs.json
+#         templates/crs510-8xs-2xq.json
 #
 
 # ---------------------------------------------------------------------------
