@@ -45,6 +45,10 @@ apt install qemu-system-x86 expect netcat curl jq unzip grep awk sed diffutils
 
 Clone this repository to `/usr/local/bin` so the scripts are on your system `PATH`:
 
+> **⚠️ Case sensitivity matters.** The model name is case-sensitive across all scripts. Whatever case you use when creating a JSON file with `build-mikrotik-json.sh` must be used **exactly** when building the QEMU image with `build-mikrotik-qemu.sh`. There is no case folding — `CCR2004-16G-2S+` and `ccr2004-16g-2s+` are treated as different models. Pick a convention and stick with it.
+>
+> Additionally, the `+` character in model names is automatically expanded to the word `plus` in all filenames and directory names (e.g. `CCR2004-16G-2S+` → `CCR2004-16G-2Splus.json`). This is because `+` conflicts with Eve-NG's naming conventions and will cause templates to be unselectable. The `+` is preserved only in the human-readable `description` and OEM `model` fields inside the JSON.
+
 ```bash
 sudo git clone https://github.com/seancrites/eveng-mikrotik.git /usr/local/bin/eveng-mikrotik
 ```
@@ -78,14 +82,18 @@ Options:
 
 ### 2. Optional: Generate per-model JSON (from MikroTik model name)
 
-This step is **not required** if you already have `templates/<model>.json` files for the models you need, but it offers an easy starting point when adding support for a new model.
+This step is **not required** — several pre-built JSON templates for common CCR, CRS, and RDS models are already included in `templates/`. Feel free to use those as-is, or generate your own with longer/variant-specific model names using this script.
 
-Due to character limitations of stored templates in Eve-NG, it can be difficult to differentiate between the various CCR2004 models and possibly other models as well. This script exists to make it easy to convert a MikroTik model name into a JSON file. Use it at your own risk — results may vary depending on whether or when MikroTik updates their naming schemes.
+The script parses a MikroTik model name to extract the interface count and port types, then writes a JSON definition file. **Each model variant** (e.g., `CCR2004-16G-2S+` vs. `CCR2004-1G-12S+2XS`) produces its own JSON file, so variant-specific port mappings are not lost.
+
+Physical mounting suffixes (`-RM`, `-IN`, `-OUT`, `-PC`) are stripped automatically from the output filename since they do not affect network performance or port layout.
 
 ```bash
 ./build-mikrotik-json.sh CRS510-8XS-2XQ
-./build-mikrotik-json.sh CRS326-24G-2S+IN
-./build-mikrotik-json.sh CRS2004-1G-12S+2XS
+./build-mikrotik-json.sh CRS326-24G-2S+RM
+./build-mikrotik-json.sh CRS326-24S+2Q+RM
+./build-mikrotik-json.sh CCR2004-1G-12S+2XS
+./build-mikrotik-json.sh CCR2004-16G-2S+
 ```
 
 Port spec abbreviations recognized:
@@ -100,10 +108,22 @@ Port spec abbreviations recognized:
 | `c` / `c+` | `combo` | Combo port |
 | `p` / `p+` / `xg` / `xp` / `fi` / `fr` / `fp` / `f` | `ether` | Copper ethernet variants |
 
-Output: `templates/MODEL_BASE.json` (e.g., `templates/crs510.json`)
+Output: `templates/MODEL_BASE.json`
+
+Examples of generated filenames:
+
+| Full Model Name | Output File |
+|-----------------|-------------|
+| `CCR2004-16G-2S+` | `templates/CCR2004-16G-2Splus.json` |
+| `CCR2004-1G-12S+2XS` | `templates/CCR2004-1G-12Splus2XS.json` |
+| `CRS326-24G-2S+RM` | `templates/CRS326-24G-2Splus.json` |
+| `CRS326-24S+2Q+RM` | `templates/CRS326-24Splus2Qplus.json` |
+| `CRS326-4C+20G+2Q+RM` | `templates/CRS326-4Cplus20Gplus2Qplus.json` |
+| `CRS510-8XS-2XQ` | `templates/CRS510-8XS-2XQ.json` |
+
 These JSON files are referenced by `build-mikrotik-qemu.sh` during template generation.
 
-Variant suffixes (`-IN`, `-RM`, `-OUT`) are stripped automatically before processing.
+**Note:** Models without a port specification in their name (e.g., `hEX`, `rb5009`) should have their JSON file created manually in `templates/`. The script only auto-generates JSON for models starting with **CCR**, **CRS**, or **RDS**. For all other models (RB, RBM, hAP, etc.), see [`so-what-know.md`](so-what-know.md) for a step-by-step guide on creating a JSON template by hand. An commented example is also available at [`templates/example.json`](templates/example.json).
 
 ### 3. Patch qcow2 Image (apply RouterOS config)
 

@@ -5,10 +5,12 @@
 # PURPOSE:   Connect to a QEMU serial console, authenticate with admin+tce,
 #            apply per-model RouterOS .rsc config files (model default,
 #            global-custom, model-custom), then issue a clean shutdown.
+#
 # AUTHOR:    Sean Crites
-# VERSION:   1.0.0
+# VERSION:   1.1.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
+# GITHUB:    https://github.com/seancrites/eveng-mikrotik
 #
 # DEPENDENCIES:
 #   - expect, telnet
@@ -55,10 +57,14 @@ if {$argc > 4} {
     }
 }
 
+# Sanitize model name: replace '+' with 'plus' for filesystem compatibility
+# Case is preserved — the user created the JSON with their exact case
+set model_sanitized [regsub -all {\\+} $model "plus"]
+
 set send_slow {1 .05}
 
 set rsc_global_file "templates/global-custom.rsc"
-set rsc_custom_file "templates/${model}-custom.rsc"
+set rsc_custom_file "templates/${model_sanitized}-custom.rsc"
 
 # Build sorted list of additional non-model-default RSC files that exist
 set additional_patches ""

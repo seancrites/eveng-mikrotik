@@ -9,9 +9,10 @@
 #            corresponding RouterOS interface names.
 #
 # AUTHOR:    Sean Crites
-# VERSION:   1.0.0
+# VERSION:   1.1.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
+# GITHUB:    https://github.com/seancrites/eveng-mikrotik
 #
 # DEPENDENCIES:
 #   - bash, sed, sort, jq, tr, awk
@@ -21,29 +22,44 @@
 #
 # MODEL should be a MikroTik model name with port specifications, such as:
 #   crs510-8xs-2xq
-#   CRS326-24G-2S+IN
+#   crs326-24g-2s+
 #   crs305-1gf-16x
 #
 # WARNING:   This script is still in development. Use with caution and
 #            verify output before relying on it.
 #
-# Variant suffixes (-IN, -RM, -OUT) are stripped automatically. Only the
-# base model name is used for the output filename.
+# The full variant-identifying string is used for the output filename.
+# Physical-mounting suffixes (-RM, -IN, -OUT, -PC) are stripped automatically
+# since they do not affect network performance or port layout.
 #
 # EXAMPLE:
 #   ./build-mikrotik-json.sh crs510-8xs-2xq
-#   ./build-mikrotik-json.sh CRS326-24G-2S+IN
-#   ./build-mikrotik-json.sh ccr2004
+#   ./build-mikrotik-json.sh crs326-24g-2s+
+#   ./build-mikrotik-json.sh ccr2004-1g-12s+2xs
+#   ./build-mikrotik-json.sh crs326-4c+20g+2q+rm
 #
 # OUTPUT:
-#   templates/MODEL.json  (e.g., templates/crs510.json)
+#   templates/MODEL_BASE.json
+#   e.g.: templates/crs326-24splus2qplus.json
+#         templates/ccr2004-1g-12splus2xs.json
+#         templates/crs510-8xs-2xq.json
 #
+
+# ---------------------------------------------------------------------------
+# sanitize_name - Replace characters that cause issues in EveNG filesystem names
+#                 Currently: '+' -> 'plus'
+# ---------------------------------------------------------------------------
+sanitize_name() {
+   local name="$1"
+   printf '%s' "$name" | sed 's/+/plus/g'
+}
 
 # ---------------------------------------------------------------------------
 # Global variables - clear all at the top
 # ---------------------------------------------------------------------------
 MODEL_INPUT=""
 MODEL_BASE=""
+MODEL_SANITIZED=""
 MODEL_JSON=""
 INTERFACE_LIST=""
 INTERFACE_TYPE_SUMMARY=""
@@ -76,11 +92,17 @@ abbr_to_root() {
 # parse_model - Convert input model name into base name and port segments
 # ---------------------------------------------------------------------------
 parse_model() {
-   local input_lower
-   input_lower="$(printf '%s' "$MODEL_INPUT" | tr '[:upper:]' '[:lower:]')"
+   # Case-preserved version for the filename/name
+   local input_case="$MODEL_INPUT"
 
-   # Base model is the first dash-separated component
-   MODEL_BASE="$(printf '%s' "$input_lower" | cut -d'-' -f1)"
+   # Base model: strip physical mounting suffixes, preserving case
+   # Suffixes (-RM, -IN, -OUT, -PC) don't affect ports
+   # Also handle suffixes directly adjacent (e.g., "2S+RM" → "2S+")
+   MODEL_BASE="$(printf '%s' "$input_case" | sed -E 's/-?(in|rm|out|pc)$//I')"
+
+   # Lowercased version for internal port parsing
+   local input_lower
+   input_lower="$(printf '%s' "$MODEL_BASE" | tr '[:upper:]' '[:lower:]')"
 
    if [ -z "$MODEL_BASE" ]; then
       echo "Error: Could not determine model base name from '$MODEL_INPUT'." >&2
@@ -242,10 +264,11 @@ parse_model() {
 }
 
 # ---------------------------------------------------------------------------
-# generate_json - Write JSON with interface names to templates/MODEL_BASE.json
+# generate_json - Write JSON with interface names to templates/MODEL_SANITIZED.json
 # ---------------------------------------------------------------------------
 generate_json() {
-   MODEL_JSON="templates/${MODEL_BASE}.json"
+   MODEL_SANITIZED="$(sanitize_name "$MODEL_BASE")"
+   MODEL_JSON="templates/${MODEL_SANITIZED}.json"
 
    # Ensure destination directory exists
    mkdir -p "templates"
@@ -263,11 +286,14 @@ generate_json() {
    port_count="$(printf '%s' "$INTERFACE_LIST" | wc -w)"
 
    # Assemble JSON document
+   # name: sanitized (no +) for EveNG filesystem compatibility
+   # model: original input, case preserved
+   # description: original input for human-friendly UI display
    local new_json
    new_json="$(jq -n \
-      --arg name "$MODEL_BASE" \
+      --arg name "$MODEL_SANITIZED" \
       --arg model "$MODEL_INPUT" \
-      --arg description "MikroTik ${MODEL_BASE^^}" \
+      --arg description "MikroTik ${MODEL_INPUT}" \
       --argjson num_cpu 1 \
       --argjson ram 256 \
       --argjson ether_ports "$port_count" \
@@ -356,6 +382,25 @@ main() {
    fi
 
    MODEL_INPUT="$1"
+
+   # Only auto-generate for known model families (CCR, CRS, RDS).
+   # RouterBOARD (RB/RBM) and other unsupported models require a
+   # hand-crafted JSON file -- see so-what-know.md for instructions.
+   local model_lower
+   model_lower="$(printf '%s' "$MODEL_INPUT" | tr '[:upper:]' '[:lower:]')"
+   if ! printf '%s' "$model_lower" | grep -qE '^(ccr|crs|rds)'; then
+      echo "Error: '$MODEL_INPUT' does not start with a recognized model prefix." >&2
+      echo "" >&2
+      echo "This script can only auto-generate JSON for models starting with:" >&2
+      echo "  CCR  (Cloud Router)" >&2
+      echo "  CRS  (Cloud Smart Switch)" >&2
+      echo "  RDS  (ROSE Data server)" >&2
+      echo "" >&2
+      echo "For other models (RB, hEX, etc.), create a JSON file by hand." >&2
+      echo "See 'so-what-know.md' in this repository for a step-by-step guide." >&2
+      exit 1
+   fi
+
    parse_model
    generate_json
 

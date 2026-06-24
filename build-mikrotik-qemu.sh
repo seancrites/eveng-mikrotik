@@ -6,10 +6,12 @@
 #            generate an architecture-specific Eve-NG template for the
 #            specified model and version, and optionally patch the image
 #            with model-specific RouterOS configuration.
+#
 # AUTHOR:    Sean Crites
-# VERSION:   1.0.0
+# VERSION:   1.1.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
+# GITHUB:    https://github.com/seancrites/eveng-mikrotik
 #
 # DEPENDENCIES:
 #   - curl, jq, unzip, grep, awk, sed, mkdir, mv, diff, qemu-system-x86_64,
@@ -66,6 +68,15 @@ SERIAL_PORT=""
 INFO_DEBUG_FILE=""
 PATCH_SUMMARY_FILE=""
 CACHE_DIR=""
+
+# ---------------------------------------------------------------------------
+# sanitize_name - Replace characters that cause issues in EveNG filesystem names
+#                 Currently: '+' -> 'plus'
+# ---------------------------------------------------------------------------
+sanitize_name() {
+   local name="$1"
+   printf '%s' "$name" | sed 's/+/plus/g'
+}
 
 # ---------------------------------------------------------------------------
 # check_dependencies - Verify all required CLI tools are available
@@ -323,14 +334,17 @@ setup_paths() {
    QEMU_BASE="/opt/unetlab/addons/qemu"
    TEMPLATES_BASE="${HTML_BASE}/templates/${TPL_SUBDIR}"
    CUSTOM_YML="${INCLUDES_DIR}/custom_templates.yml"
-   QEMU_DIR="${QEMU_BASE}/mikrotik-${MODEL}-${VERSION}"
+   # QEMU_DIR is recomputed in load_model_config after sanitization
 }
 
 # ---------------------------------------------------------------------------
 # load_model_config - Validate model JSON exists and extract fields
 # ---------------------------------------------------------------------------
 load_model_config() {
-   local JSON_FILE="templates/${MODEL}.json"
+   # Use sanitized name for all filesystem paths (+ -> plus)
+   local MODEL_SANITIZED
+   MODEL_SANITIZED="$(sanitize_name "$MODEL")"
+   local JSON_FILE="templates/${MODEL_SANITIZED}.json"
 
    if [ "$VERBOSE" = true ]; then
       echo "Loading model data from ${JSON_FILE}..."
@@ -346,7 +360,9 @@ load_model_config() {
    NUM_CPU=$(jq -r '.num_cpu' "$JSON_FILE")
    RAM=$(jq -r '.ram' "$JSON_FILE")
    ETHER_PORTS=$(jq -r '.ether_ports' "$JSON_FILE")
-   DIR_PREFIX="mikrotik-${MODEL}"
+   # Use the sanitized (case-preserved) name for all EveNG paths
+   DIR_PREFIX="mikrotik-${MODEL_SANITIZED}"
+   QEMU_DIR="${QEMU_BASE}/mikrotik-${MODEL_SANITIZED}-${VERSION}"
 
    if [ "$VERBOSE" = true ]; then
       echo "Model: $DESCRIPTION (prefix: $DIR_PREFIX)"
@@ -357,8 +373,7 @@ load_model_config() {
 # create_qemu_directory - Create the model/version QEMU directory with prompt
 # ---------------------------------------------------------------------------
 create_qemu_directory() {
-   QEMU_DIR="${QEMU_BASE}/mikrotik-${MODEL}-${VERSION}"
-
+   # QEMU_DIR was already set by load_model_config with sanitized name
    if [ -d "$QEMU_DIR" ] && [ "$FORCE" = false ]; then
       echo "Warning: Directory $QEMU_DIR already exists."
       read -rp "Overwrite existing files? (y/N): " confirm
@@ -540,7 +555,9 @@ generate_template() {
       TMP_MERGED="/tmp/${DEBUG_PREFIX}-merged-${DIR_PREFIX}.yml"
    fi
 
-   jq -r '.ether_names | map("  - " + .) | join("\n")' "templates/${MODEL}.json" > "$ETH_LIST_TMP"
+   local MODEL_SANITIZED
+   MODEL_SANITIZED="$(sanitize_name "$MODEL")"
+   jq -r '.ether_names | map("  - " + .) | join("\n")' "templates/${MODEL_SANITIZED}.json" > "$ETH_LIST_TMP"
 
    awk -v desc="$DESCRIPTION" \
        -v prefix="$DIR_PREFIX" \

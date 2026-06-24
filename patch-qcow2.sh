@@ -5,10 +5,12 @@
 # PURPOSE:   Boot a MikroTik CHR qcow2 image with QEMU, connect via serial
 #            console, apply per-model RouterOS configuration (interface
 #            renaming, identity, etc.), then cleanly shut down the guest.
+#
 # AUTHOR:    Sean Crites
-# VERSION:   1.0.0
+# VERSION:   1.1.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
+# GITHUB:    https://github.com/seancrites/eveng-mikrotik
 #
 # DEPENDENCIES:
 #   - qemu-system-x86_64, expect, nc, jq
@@ -45,10 +47,21 @@ log() {
    echo "[$(date '+%H:%M:%S')] $1" >&2
 }
 
+# ---------------------------------------------------------------------------
+# sanitize_name - Replace characters that cause issues in EveNG filesystem names
+#                 Currently: '+' -> 'plus'
+# ---------------------------------------------------------------------------
+sanitize_name() {
+   local name="$1"
+   printf '%s' "$name" | sed 's/+/plus/g'
+}
+
 # Generate a per-model RSC file on the fly from the JSON definition and template.
 # Returns the path to the generated RSC file.
 generate_rsc() {
-   local model="$1"
+   local model_raw="$1"
+   local model
+   model="$(sanitize_name "$model_raw")"
    local rnd_prefix="$2"
    local json_file="templates/${model}.json"
    local template_file="templates/mikrotik-template.rsc"
@@ -113,7 +126,7 @@ MAIN() {
 
    # Auto-detect model from path: expects .../mikrotik-<model>-<version>/hda.qcow2
    PARENT_DIR="$(basename "$(dirname "$QCOW2")")"
-   if [[ "$PARENT_DIR" =~ ^mikrotik-(.+)-[0-9] ]]; then
+   if [[ "$PARENT_DIR" =~ ^mikrotik-(.+)-([0-9]+\.[0-9]+(\.[0-9]+)?)$ ]]; then
       MODEL="${BASH_REMATCH[1]}"
    else
       echo "Error: Could not auto-detect model from path '$QCOW2'."
