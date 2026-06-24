@@ -381,6 +381,25 @@ main() {
    fi
 
    MODEL_INPUT="$1"
+
+   # Only auto-generate for known model families (CCR, CRS, RDS).
+   # RouterBOARD (RB/RBM) and other unsupported models require a
+   # hand-crafted JSON file -- see so-what-know.md for instructions.
+   local model_lower
+   model_lower="$(printf '%s' "$MODEL_INPUT" | tr '[:upper:]' '[:lower:]')"
+   if ! printf '%s' "$model_lower" | grep -qE '^(ccr|crs|rds)'; then
+      echo "Error: '$MODEL_INPUT' does not start with a recognized model prefix." >&2
+      echo "" >&2
+      echo "This script can only auto-generate JSON for models starting with:" >&2
+      echo "  CCR  (Cloud Router)" >&2
+      echo "  CRS  (Cloud Smart Switch)" >&2
+      echo "  RDS  (ROSE Data server)" >&2
+      echo "" >&2
+      echo "For other models (RB, hEX, etc.), create a JSON file by hand." >&2
+      echo "See 'so-what-know.md' in this repository for a step-by-step guide." >&2
+      exit 1
+   fi
+
    parse_model
    generate_json
 
