@@ -45,6 +45,10 @@ apt install qemu-system-x86 expect netcat curl jq unzip grep awk sed diffutils
 
 Clone this repository to `/usr/local/bin` so the scripts are on your system `PATH`:
 
+> **⚠️ Case sensitivity matters.** The model name is case-sensitive across all scripts. Whatever case you use when creating a JSON file with `build-mikrotik-json.sh` must be used **exactly** when building the QEMU image with `build-mikrotik-qemu.sh`. There is no case folding — `CCR2004-16G-2S+` and `ccr2004-16g-2s+` are treated as different models. Pick a convention and stick with it.
+>
+> Additionally, the `+` character in model names is automatically expanded to the word `plus` in all filenames and directory names (e.g. `CCR2004-16G-2S+` → `CCR2004-16G-2Splus.json`). This is because `+` conflicts with Eve-NG's naming conventions and will cause templates to be unselectable. The `+` is preserved only in the human-readable `description` and OEM `model` fields inside the JSON.
+
 ```bash
 sudo git clone https://github.com/seancrites/eveng-mikrotik.git /usr/local/bin/eveng-mikrotik
 ```
@@ -78,7 +82,7 @@ Options:
 
 ### 2. Optional: Generate per-model JSON (from MikroTik model name)
 
-This step is **not required** if you already have `templates/<model>.json` files for the models you need, but it offers an easy starting point when adding support for a new model.
+This step is **not required** — several pre-built JSON templates for common CCR, CRS, and RDS models are already included in `templates/`. Feel free to use those as-is, or generate your own with longer/variant-specific model names using this script.
 
 The script parses a MikroTik model name to extract the interface count and port types, then writes a JSON definition file. **Each model variant** (e.g., `CCR2004-16G-2S+` vs. `CCR2004-1G-12S+2XS`) produces its own JSON file, so variant-specific port mappings are not lost.
 
