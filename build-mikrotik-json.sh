@@ -9,9 +9,10 @@
 #            corresponding RouterOS interface names.
 #
 # AUTHOR:    Sean Crites
-# VERSION:   1.0.0
+# VERSION:   1.1.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
+# GITHUB:    https://github.com/seancrites/eveng-mikrotik
 #
 # DEPENDENCIES:
 #   - bash, sed, sort, jq, tr, awk

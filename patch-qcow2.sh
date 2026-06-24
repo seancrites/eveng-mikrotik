@@ -7,10 +7,10 @@
 #            renaming, identity, etc.), then cleanly shut down the guest.
 #
 # AUTHOR:    Sean Crites
-# VERSION:   1.0.0
+# VERSION:   1.1.0
 # DATE:      2026-06-20
 # LICENSE:   GNU General Public License v3.0 (GPL-3.0)
-# GITHUB:    https://github.com/seancrites/even-mikrotik
+# GITHUB:    https://github.com/seancrites/eveng-mikrotik
 #
 # DEPENDENCIES:
 #   - qemu-system-x86_64, expect, nc, jq
